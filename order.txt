@@ -1,0 +1,40 @@
+sudo chown -R www-data:www-data /var/www/html
+sudo chmod -R 755 /var/www/html
+
+npm run build
+scp -r build/* root@178.128.80.147:/var/www/html/
+
+node read-idcard.js
+
+ssh root@178.128.80.147
+
+touch การสร้างไฟล์
+
+เพื่อสร้าง migration และอัปเดตฐานข้อมูล
+alembic revision --autogenerate -m "Add expenses, diamond_buy_in, diamond_sell_out to AllGoldTransaction"
+alembic upgrade head
+
+
+nano
+
+Ctrl + O (Control + O): นี่คือคำสั่ง "Write Out" (บันทึก)
+
+source .env/bin/activate
+
+deactivate
+
+pkill -f uvicorn
+
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+tmux
+
+กด Ctrl + b แล้วตามด้วย d
+
+sudo systemctl status nginx ดูว่าทำงานอะไรอยู่
+
+sudo nano /etc/nginx/nginx.conf
+
+curl http://127.0.0.1:8000/openapi.json | jq '.paths'
+
+sqlite3 /root/gold/backend/gold_data.db
