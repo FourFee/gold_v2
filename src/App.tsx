@@ -1,6 +1,5 @@
 // gold/src/App.tsx
 import React from 'react';
-import logo from './logo.svg';
 import { Link } from "react-router-dom";
 
 function App() {

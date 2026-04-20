@@ -1,9 +1,11 @@
 // src/pages/PawnList.tsx
 
 import { useEffect, useState, useCallback } from "react";
+import dayjs from "dayjs";
 import {
   Box, Paper, Typography, Table, TableHead, TableRow, TableCell, TableBody,
-  Button, Chip, IconButton, TextField, TablePagination,CircularProgress  // Import TablePagination
+  Button, Chip, IconButton, TextField, TablePagination, CircularProgress,
+  ToggleButton, ToggleButtonGroup
 } from "@mui/material";
 import { Delete, Edit, Save } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -42,9 +44,17 @@ export default function PawnList() {
   }, [fetchData]); // Dependency for useEffect: fetchData function
 
   const [search, setSearch] = useState<string>("");
+  const [period, setPeriod] = useState("all");
+
+  const periodData = period === "all" ? data : data.filter(item => {
+    const start = period === "day"   ? dayjs().startOf("day")
+                : period === "week"  ? dayjs().startOf("week")
+                : dayjs().startOf("month");
+    return !dayjs(item.date).isBefore(start);
+  });
 
   // Filtered data based on search input
-  const filteredData = data.filter(
+  const filteredData = periodData.filter(
     (item) =>
       (item.date ? new Date(item.date).toLocaleDateString("th-TH").replace(/[\s]/g, '-') : '').includes(search.replace(/\s/g, '-')) ||
       item.firstname.toLowerCase().includes(search.toLowerCase()) ||
@@ -133,7 +143,13 @@ export default function PawnList() {
           📄 รายการจำนำทอง
         </Typography>
 
-        <Box mb={2} display="flex" justifyContent="space-between">
+        <Box mb={2} display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
+          <ToggleButtonGroup value={period} exclusive onChange={(_, v) => v && setPeriod(v)} size="small">
+            <ToggleButton value="day">วัน</ToggleButton>
+            <ToggleButton value="week">สัปดาห์</ToggleButton>
+            <ToggleButton value="month">เดือน</ToggleButton>
+            <ToggleButton value="all">ทั้งหมด</ToggleButton>
+          </ToggleButtonGroup>
           <TextField
             variant="outlined"
             placeholder="ค้นหา วันที่, ชื่อ, เลขบัตร, เบอร์โทรศัพท์..."

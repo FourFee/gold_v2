@@ -29,37 +29,26 @@ def create_bar_gold(data: BarGoldCreate, db: Session = Depends(get_db)):
 # ✅ Read All (แก้ไขส่วนการคำนวณ start_date)
 @router.get("/bar-gold/list")
 def get_bar_gold_transactions(
-    period: str = Query("month", description="Filter by period: day, week, month"),
+    period: str = Query("all", description="Filter by period: day, week, month, all"),
     sort_order: str = Query("desc", description="Sort order: asc or desc"),
     db: Session = Depends(get_db)
 ):
     query = db.query(BarGold)
     today = datetime.today()
 
-    # 1. การกรองตาม Period (ปรับแก้ส่วนนี้)
     if period == "day":
-        # ดึงข้อมูล 7 วันย้อนหลัง โดยเริ่มจาก 00:00:00 ของ 6 วันที่แล้ว
-        start_date = (today - timedelta(days=6)).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(BarGold.date >= start_date)
     elif period == "week":
-        # ดึงข้อมูล 4 สัปดาห์ย้อนหลัง โดยเริ่มจากวันจันทร์ของ 3 สัปดาห์ที่แล้ว เวลา 00:00:00
-        start_of_current_week = today - timedelta(days=today.weekday())
-        start_date = (start_of_current_week - timedelta(weeks=3)).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = (today - timedelta(days=today.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(BarGold.date >= start_date)
     elif period == "month":
-        # ดึงข้อมูล 6 เดือนย้อนหลัง โดยเริ่มจาก 00:00:00 ของวันแรกของเดือนที่ 6 ย้อนหลัง
-        start_of_current_month = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        temp_date = start_of_current_month
-        for _ in range(5): # ย้อนหลัง 5 เดือน เพื่อให้ครอบคลุม 6 เดือน (เดือนปัจจุบัน + 5 เดือนก่อนหน้า)
-            if temp_date.month == 1:
-                temp_date = temp_date.replace(year=temp_date.year - 1, month=12)
-            else:
-                temp_date = temp_date.replace(month=temp_date.month - 1)
-        start_date = temp_date.replace(hour=0, minute=0, second=0, microsecond=0) # ให้มั่นใจว่าเป็น 00:00:00
+        start_date = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        query = query.filter(BarGold.date >= start_date)
+    elif period == "all":
+        pass  # ไม่กรอง ดึงทั้งหมด
     else:
-        raise HTTPException(status_code=400, detail="Invalid period. Must be 'day', 'week', or 'month'.")
-
-    # ใช้ .date() ในการเปรียบเทียบถ้า BarGold.date เป็นเพียงวันที่ (Date type)
-    # แต่ถ้าเป็น DateTime type ให้เปรียบเทียบกับ datetime object
-    query = query.filter(BarGold.date >= start_date)
+        raise HTTPException(status_code=400, detail="Invalid period. Must be 'day', 'week', 'month', or 'all'.")
 
     # 2. การเรียงลำดับ (ไม่ต้องเปลี่ยน)
     if sort_order == "desc":

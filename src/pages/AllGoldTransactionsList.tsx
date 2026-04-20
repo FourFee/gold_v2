@@ -1,6 +1,7 @@
 // path: gold/src/pages/AllGoldTransactionsList.tsx
 
 import { useEffect, useState, useCallback } from "react";
+import dayjs from "dayjs";
 import {
   Box,
   Paper,
@@ -13,8 +14,10 @@ import {
   Button,
   TextField,
   IconButton,
-  TablePagination, // 🌟 Import TablePagination
-  CircularProgress // 🌟 Import CircularProgress
+  TablePagination,
+  CircularProgress,
+  ToggleButton,
+  ToggleButtonGroup
 } from "@mui/material";
 import { Edit, Save, Delete } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -58,11 +61,17 @@ export default function AllGoldTransactionsList() {
 useEffect(() => {
   fetchData();
 }, [fetchData]);
-  // 1. เพิ่ม state
   const [search, setSearch] = useState<string>("");
+  const [period, setPeriod] = useState("all");
 
-  // 2. เพิ่ม filteredData (แทรกก่อน displayedData)
-  const filteredData = data.filter((item) =>
+  const periodData = period === "all" ? data : data.filter(item => {
+    const start = period === "day"   ? dayjs().startOf("day")
+                : period === "week"  ? dayjs().startOf("week")
+                : dayjs().startOf("month");
+    return !dayjs(item.date).isBefore(start);
+  });
+
+  const filteredData = periodData.filter((item) =>
     (item.date ? new Date(item.date).toLocaleDateString("th-TH") : "").includes(search) ||
     String(item.redeem || "").includes(search) ||
     String(item.buyIn || "").includes(search) ||
@@ -168,7 +177,13 @@ useEffect(() => {
         <Typography variant="h5" gutterBottom color="primary" fontWeight={600} mb={3}>
           📊 รายการธุรกรรมทองทั้งหมด
         </Typography>
-        <Box mb={2} display="flex" justifyContent="space-between">
+        <Box mb={2} display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
+          <ToggleButtonGroup value={period} exclusive onChange={(_, v) => v && setPeriod(v)} size="small">
+            <ToggleButton value="day">วัน</ToggleButton>
+            <ToggleButton value="week">สัปดาห์</ToggleButton>
+            <ToggleButton value="month">เดือน</ToggleButton>
+            <ToggleButton value="all">ทั้งหมด</ToggleButton>
+          </ToggleButtonGroup>
           <TextField
             variant="outlined"
             placeholder="ค้นหา วันที่, ยอดไถ่, ซื้อเข้า, ขายออก..."
@@ -176,7 +191,7 @@ useEffect(() => {
             onChange={(e) => setSearch(e.target.value)}
             sx={{ width: 300 }}
           />
-          <Button variant="contained" color="primary" 
+          <Button variant="contained" color="primary"
             onClick={() => navigate("/all-transactions-create")}>
             ➕ เพิ่มรายการ
           </Button>

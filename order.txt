@@ -15,6 +15,7 @@ alembic revision --autogenerate -m "Add expenses, diamond_buy_in, diamond_sell_o
 alembic upgrade head
 
 
+
 nano
 
 Ctrl + O (Control + O): นี่คือคำสั่ง "Write Out" (บันทึก)

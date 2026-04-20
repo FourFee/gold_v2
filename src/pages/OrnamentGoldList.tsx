@@ -1,6 +1,7 @@
 // src/pages/OrnamentGoldList.tsx
 
 import { useEffect, useState, useCallback } from "react";
+import dayjs from "dayjs";
 import {
   Box,
   Paper,
@@ -16,7 +17,7 @@ import {
   IconButton,
   TextField,
   TablePagination,
-  CircularProgress  // Import TablePagination
+  CircularProgress
 } from "@mui/material";
 import { Delete, Edit, Save } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
@@ -59,8 +60,16 @@ export default function OrnamentGoldList() {
   }, [fetchData]); // Dependency for useEffect: fetchData function
 
   const [search, setSearch] = useState<string>("");
+  const [period, setPeriod] = useState("all");
 
-  const filteredData = data.filter(
+  const periodData = period === "all" ? data : data.filter(item => {
+    const start = period === "day"   ? dayjs().startOf("day")
+                : period === "week"  ? dayjs().startOf("week")
+                : dayjs().startOf("month");
+    return !dayjs(item.date).isBefore(start);
+  });
+
+  const filteredData = periodData.filter(
     (item) =>
       item.mode === mode &&
       (
@@ -152,15 +161,17 @@ export default function OrnamentGoldList() {
           💍 รายการทองรูปพรรณ ({mode === "buy" ? "ขายออก" : "ซื้อเข้า"})
         </Typography>
 
-        <Box display="flex" justifyContent="space-between" mb={2}>
-          <ToggleButtonGroup
-            value={mode}
-            exclusive
-            onChange={handleModeChange}
-            color="primary"
-          >
+        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={2}>
+          <ToggleButtonGroup value={mode} exclusive onChange={handleModeChange} color="primary">
             <ToggleButton value="buy">🛒 ขายออก</ToggleButton>
             <ToggleButton value="sell">💰 ซื้อเข้า</ToggleButton>
+          </ToggleButtonGroup>
+
+          <ToggleButtonGroup value={period} exclusive onChange={(_, v) => v && setPeriod(v)} size="small">
+            <ToggleButton value="day">วัน</ToggleButton>
+            <ToggleButton value="week">สัปดาห์</ToggleButton>
+            <ToggleButton value="month">เดือน</ToggleButton>
+            <ToggleButton value="all">ทั้งหมด</ToggleButton>
           </ToggleButtonGroup>
 
           <TextField

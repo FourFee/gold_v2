@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from routers import pawn, bar_gold, ornament_gold, dashboard, idcard, all_gold_transactions, bar_gold_exchange
+from routers import pawn, bar_gold, ornament_gold, dashboard, idcard, all_gold_transactions, bar_gold_exchange, print_receipt
 from database import create_db
 import os
 
@@ -26,6 +26,7 @@ app.include_router(dashboard.router)
 app.include_router(idcard.router)
 app.include_router(all_gold_transactions.router)
 app.include_router(bar_gold_exchange.router)
+app.include_router(print_receipt.router)
 
 # ✅ Static files ไว้ท้ายสุดเสมอ
 frontend_path = "/var/www/html/frontend"

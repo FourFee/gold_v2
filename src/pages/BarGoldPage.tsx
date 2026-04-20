@@ -7,6 +7,8 @@ import { useTheme } from "@mui/material/styles";
 import { API_BASE, GOLD_BAHT_TO_GRAM_BAR } from "../config";
 import { Snackbar, Alert } from "@mui/material";
 import { useNotify } from "../hooks/useNotify";
+import { usePrint } from "../components/ReceiptPrint";
+import PrintIcon from "@mui/icons-material/Print";
 
 export default function BarGoldPage() {
   const theme = useTheme();
@@ -15,6 +17,7 @@ export default function BarGoldPage() {
     weightBaht: "", weightGram: "", amount: "", remark: ""
   });
   const { snackbar, notify, handleClose } = useNotify();
+  const { print } = usePrint();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"buy" | "sell">("sell");
 
@@ -40,6 +43,18 @@ export default function BarGoldPage() {
       });
       if (!response.ok) throw new Error("❌ บันทึกไม่สำเร็จ");
       notify("✅ บันทึกเรียบร้อย", "success");
+      print({
+        type: "bar",
+        firstname: form.firstname,
+        lastname:  form.lastname,
+        idcard:    form.idcard,
+        phone:     form.phone,
+        address:   form.address,
+        weight:    parseFloat(form.weightGram) || 0,
+        amount:    parseFloat(form.amount) || 0,
+        goldType:  mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)",
+        remark:    form.remark,
+      });
       navigate("/bar-list");
     } catch (err) {
       notify((err as Error).message, "error");
@@ -132,8 +147,11 @@ export default function BarGoldPage() {
 
         <Grid item xs={12}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="flex-end">
-            <Button variant="contained" color="primary" onClick={handleSubmit}>บันทึกข้อมูล</Button>
-            <Button variant="outlined" onClick={() => navigate("/")}>ย้อนกลับ</Button>
+            <Button variant="contained" color="primary" onClick={handleSubmit}>💾 บันทึก + พิมพ์</Button>
+            <Button variant="outlined" startIcon={<PrintIcon />} onClick={() => print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightGram)||0, amount: parseFloat(form.amount)||0, goldType: mode === "buy" ? "ขายออก" : "ซื้อเข้า", remark: form.remark })}>
+              พิมพ์ใบเสร็จ
+            </Button>
+            <Button variant="outlined" onClick={() => navigate("/")}>⬅️ ย้อนกลับ</Button>
           </Stack>
         </Grid>
       </Grid>

@@ -93,7 +93,7 @@ export default function BarGoldList() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API}/list?period=${selectedPeriod}&sort_order=desc`);
+      const response = await fetch(`${API}/list?sort_order=desc&period=${selectedPeriod}`);
       if (!response.ok) throw new Error('Failed to fetch data');
       const json = await response.json();
       console.log("📦 bar-gold list data:", json);
@@ -318,9 +318,10 @@ export default function BarGoldList() {
                   onChange={(_, v) => v && setSelectedPeriod(v)}
                   size="small"
                 >
-                  <ToggleButton value="day">รายวัน</ToggleButton>
-                  <ToggleButton value="week">รายสัปดาห์</ToggleButton>
-                  <ToggleButton value="month">รายเดือน</ToggleButton>
+                  <ToggleButton value="day">วัน</ToggleButton>
+                  <ToggleButton value="week">สัปดาห์</ToggleButton>
+                  <ToggleButton value="month">เดือน</ToggleButton>
+                  <ToggleButton value="all">ทั้งหมด</ToggleButton>
                 </ToggleButtonGroup>
                 <ToggleButtonGroup
                   value={mode}

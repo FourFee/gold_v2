@@ -131,11 +131,11 @@ export default function MainLayout() {
           component={RouterLink}
           to="/"
           sx={{ 
-            background: 'linear-gradient(135deg, #D4AF37 0%, #B8860B 100%)',
+            background: 'linear-gradient(135deg, #C9A84C 0%, #8B6914 100%)',
             color: 'white',
             margin: '12px 0',
             '&:hover': {
-              background: 'linear-gradient(135deg, #B8860B 0%, #D4AF37 100%)',
+              background: 'linear-gradient(135deg, #8B6914 0%, #C9A84C 100%)',
               transform: 'translateX(4px)',
             }
           }}
@@ -236,13 +236,9 @@ export default function MainLayout() {
       <CssBaseline />
       
       {/* AppBar */}
-      <AppBar 
-        position="fixed" 
-        sx={{ 
-          zIndex: (theme) => theme.zIndex.drawer + 1,
-          backgroundColor: '#D4AF37',
-          boxShadow: '0 4px 20px rgba(212, 175, 55, 0.3)'
-        }}
+      <AppBar
+        position="fixed"
+        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
       >
         <Toolbar sx={{ 
           justifyContent: "space-between",
@@ -326,10 +322,7 @@ export default function MainLayout() {
           flexGrow: 1,
           p: 3,
           width: { sm: `calc(100% - ${drawerWidth}px)` },
-          backgroundColor: (theme) => 
-            theme.palette.mode === 'light' 
-              ? '#f8f9fa' 
-              : theme.palette.background.default,
+          backgroundColor: (theme) => theme.palette.background.default,
           minHeight: '100vh'
         }}
       >

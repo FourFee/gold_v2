@@ -8,7 +8,9 @@ import {
 import { useTheme } from "@mui/material/styles";
 import { API_BASE } from "../config";
 import { Snackbar, Alert } from "@mui/material";
-import { useNotify } from "../hooks/useNotify"; 
+import { useNotify } from "../hooks/useNotify";
+import { usePrint } from "../components/ReceiptPrint";
+import PrintIcon from "@mui/icons-material/Print";
 
 export default function PawnPage() {
   const theme = useTheme();
@@ -24,7 +26,8 @@ export default function PawnPage() {
     remark: "",
   });
 
-  const { snackbar, notify, handleClose } = useNotify();  
+  const { snackbar, notify, handleClose } = useNotify();
+  const { print } = usePrint();
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,6 +51,17 @@ export default function PawnPage() {
 
       if (!response.ok) throw new Error("❌ เกิดข้อผิดพลาดในการบันทึกข้อมูล");
       notify("✅ บันทึกข้อมูลเรียบร้อย", "success");
+      print({
+        type: "pawn",
+        firstname: form.firstname,
+        lastname:  form.lastname,
+        idcard:    form.idcard,
+        phone:     form.phone,
+        address:   form.address,
+        weight:    parseFloat(form.weight),
+        amount:    parseFloat(form.amount),
+        remark:    form.remark,
+      });
       navigate("/pawn-list");
     } catch (error) {
       notify((error as Error).message, "error");
@@ -129,7 +143,10 @@ export default function PawnPage() {
 
         <Grid item xs={12}>
           <Stack direction={{ xs: "column", sm: "row" }} spacing={2} justifyContent="flex-end">
-            <Button variant="contained" color="primary" onClick={handleSubmit}>💾 บันทึกข้อมูล</Button>
+            <Button variant="contained" color="primary" onClick={handleSubmit}>💾 บันทึก + พิมพ์</Button>
+            <Button variant="outlined" startIcon={<PrintIcon />} onClick={() => print({ type: "pawn", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weight)||0, amount: parseFloat(form.amount)||0, remark: form.remark })}>
+              พิมพ์ใบเสร็จ
+            </Button>
             <Button variant="outlined" onClick={() => navigate("/")}>⬅️ ย้อนกลับ</Button>
           </Stack>
         </Grid>
