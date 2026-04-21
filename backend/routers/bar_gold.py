@@ -2,25 +2,17 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc
-from database import SessionLocal, get_db
+from database import get_db
 from models import BarGold
 from schemas import BarGoldCreate
 from datetime import datetime, timedelta
 
 router = APIRouter()
 
-# Dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 # ✅ Create
 @router.post("/bar-gold/create")
 def create_bar_gold(data: BarGoldCreate, db: Session = Depends(get_db)):
-    obj = BarGold(**data.dict())
+    obj = BarGold(**data.model_dump())
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -67,7 +59,7 @@ def update_bar_gold(id: int, data: BarGoldCreate, db: Session = Depends(get_db))
     bar_gold = db.query(BarGold).filter(BarGold.id == id).first()
     if bar_gold is None:
         raise HTTPException(status_code=404, detail="Not found")
-    for key, value in data.dict().items():
+    for key, value in data.model_dump().items():
         setattr(bar_gold, key, value)
     db.commit()
     return {"status": "updated"}

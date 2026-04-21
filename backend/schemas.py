@@ -1,6 +1,6 @@
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import DateTime
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal
 
 class PawnCreate(BaseModel):
@@ -41,7 +41,7 @@ class OrnamentGoldCreate(BaseModel):
 
 # 📌 แก้ไข: ลบ id ออกจาก AllGoldTransactionsCreate
 class AllGoldTransactionsCreate(BaseModel):
-    date: datetime = Field(default_factory=datetime.utcnow)  # เรียก utcnow() ใหม่ทุกครั้งที่สร้าง record
+    date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # เรียก utcnow() ใหม่ทุกครั้งที่สร้าง record
     redeem: float = 0.0
     interest: float = 0.0
     pawn: float = 0.0

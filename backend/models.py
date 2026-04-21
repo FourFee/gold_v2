@@ -1,14 +1,15 @@
 from sqlalchemy import Column, Integer, String, Float, Enum
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import DateTime
-from datetime import datetime
+from datetime import datetime, timezone
+
 
 Base = declarative_base()
 
 class Pawn(Base):
     __tablename__ = "pawn"
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(DateTime, default=datetime.utcnow)
+    date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     firstname = Column(String)
     lastname = Column(String)
     idcard = Column(String)
@@ -21,7 +22,7 @@ class Pawn(Base):
 class BarGold(Base):
     __tablename__ = "bar_gold"
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(DateTime, default=datetime.utcnow)
+    date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     firstname = Column(String)
     lastname = Column(String)
     idcard = Column(String)
@@ -41,7 +42,7 @@ class BarGold(Base):
 class OrnamentGold(Base):
     __tablename__ = "ornament_gold"
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(DateTime, default=datetime.utcnow)
+    date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     firstname = Column(String)
     lastname = Column(String)
     idcard = Column(String)
@@ -55,7 +56,7 @@ class OrnamentGold(Base):
 class AllGoldTransaction(Base):
     __tablename__ = "all_gold_transactions"
     id = Column(Integer, primary_key=True, index=True)
-    date = Column(DateTime, default=datetime.utcnow)
+    date = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     redeem = Column(Float, default=0.0)
     interest = Column(Float, default=0.0)
     pawn = Column(Float, default=0.0)

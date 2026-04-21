@@ -20,23 +20,25 @@ import {
   ToggleButtonGroup
 } from "@mui/material";
 import { Edit, Save, Delete } from "@mui/icons-material";
+import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
 import { useNavigate } from "react-router-dom";
 import { API_BASE } from "../config";
-// ต้องเพิ่มที่บนสุด
 import { useNotify } from "../hooks/useNotify";
 import { Snackbar, Alert } from "@mui/material";
-
+import { AllGoldTransactionRecord } from "../types";
 
 export default function AllGoldTransactionsList() {
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<AllGoldTransactionRecord[]>([]);
   const [editIndex, setEditIndex] = useState<number | null>(null);
-  const [form, setForm] = useState<any>({}); // State to hold data being edited
+  const [form, setForm] = useState<Partial<AllGoldTransactionRecord>>({}); // State to hold data being edited
   const navigate = useNavigate();
 
   // 📌 API Endpoint for All Gold Transactions
   const API = `${API_BASE}/all-gold-transactions`;
 
-  const [deleting, setDeleting] = useState<number | null>(null); // เก็บ id ที่กำลังลบ
+  const [deleting, setDeleting] = useState<number | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
 
   // 🌟🌟🌟 เพิ่ม State สำหรับ Pagination 🌟🌟🌟
   const [page, setPage] = useState(0); // เลขหน้าปัจจุบัน (เริ่มต้นที่ 0)
@@ -142,33 +144,40 @@ useEffect(() => {
   };
 
   // 📌 Delete a row
-  const handleDelete = async (id: number) => {
-    if (!window.confirm("คุณแน่ใจหรือไม่ว่าต้องการลบรายการนี้?")) return;
-    setDeleting(id);
+  const handleDelete = (id: number) => {
+    setPendingDeleteId(id);
+    setConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDeleteId) return;
+    setDeleting(pendingDeleteId);
+    setConfirmOpen(false);
     try {
-      await fetch(`${API}/delete/${id}`, { method: "DELETE" });
+      await fetch(`${API}/delete/${pendingDeleteId}`, { method: "DELETE" });
       await fetchData();
     } finally {
       setDeleting(null);
+      setPendingDeleteId(null);
     }
   };
 
   // ✅ ส่วนการคำนวณผลรวมทั้งหมด
   const totals = data.reduce(
     (acc, item) => {
-      acc.redeem += parseFloat(item.redeem || "0");
-      acc.interest += parseFloat(item.interest || "0");
-      acc.pawn += parseFloat(item.pawn || "0");
-      acc.buyIn += parseFloat(item.buyIn || "0");
-      acc.exchange += parseFloat(item.exchange || "0");
-      acc.sellOut += parseFloat(item.sellOut || "0");
-      acc.expenses += parseFloat(item.expenses || "0");
-      acc.diamondBuyIn += parseFloat(item.diamondBuyIn || "0");
-      acc.diamondSellOut += parseFloat(item.diamondSellOut || "0");
-      acc.platedGold += parseFloat(item.platedGold || "0"); // 🌟 รวมทองชุบ
+      acc.redeem += item.redeem || 0;
+      acc.interest += item.interest || 0;
+      acc.pawn += item.pawn || 0;
+      acc.buyIn += item.buyIn || 0;
+      acc.exchange += item.exchange || 0;
+      acc.sellOut += item.sellOut || 0;
+      acc.expenses += item.expenses || 0;
+      acc.diamondBuyIn += item.diamondBuyIn || 0;
+      acc.diamondSellOut += item.diamondSellOut || 0;
+      acc.platedGold += item.platedGold || 0;
       return acc;
     },
-    { redeem: 0, interest: 0, pawn: 0, buyIn: 0, exchange: 0, sellOut: 0, expenses: 0, diamondBuyIn: 0, diamondSellOut: 0 , platedGold: 0 } // 🌟 รวมทองชุบ
+    { redeem: 0, interest: 0, pawn: 0, buyIn: 0, exchange: 0, sellOut: 0, expenses: 0, diamondBuyIn: 0, diamondSellOut: 0, platedGold: 0 }
   ); 
 
   return (
@@ -472,6 +481,14 @@ useEffect(() => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+      <Dialog open={confirmOpen}>
+        <DialogTitle>ยืนยันการลบ</DialogTitle>
+        <DialogContent>คุณต้องการลบรายการนี้หรือไม่?</DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmOpen(false)}>ยกเลิก</Button>
+          <Button color="error" onClick={confirmDelete}>ลบ</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

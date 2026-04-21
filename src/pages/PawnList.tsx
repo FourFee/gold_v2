@@ -1,291 +1,389 @@
 // src/pages/PawnList.tsx
-
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import dayjs from "dayjs";
 import {
   Box, Paper, Typography, Table, TableHead, TableRow, TableCell, TableBody,
-  Button, Chip, IconButton, TextField, TablePagination, CircularProgress,
-  ToggleButton, ToggleButtonGroup
+  TextField, IconButton, TablePagination, CircularProgress, Skeleton,
+  InputAdornment, Tooltip, Button, Grid, alpha,
 } from "@mui/material";
-import { Delete, Edit, Save } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import { Delete, Edit, Save, Search as SearchIcon, Refresh } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
+import { Snackbar, Alert } from "@mui/material";
 import { API_BASE } from "../config";
 import { useNotify } from "../hooks/useNotify";
-import { Snackbar, Alert } from "@mui/material";
-import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
+import { makeG } from "../utils/dashboardTokens";
+import { PawnRecord } from "../types";
+
+const MONO = '"JetBrains Mono", ui-monospace, monospace';
+
+const PERIODS = [
+  { value: 'day',   label: 'วัน'      },
+  { value: 'week',  label: 'สัปดาห์'  },
+  { value: 'month', label: 'เดือน'    },
+  { value: 'all',   label: 'ทั้งหมด'  },
+] as const;
 
 export default function PawnList() {
-  const [data, setData] = useState<any[]>([]);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
-  const [form, setForm] = useState<any>({});
-  const navigate = useNavigate();
-  const API = `${API_BASE}/pawn`;
+  const theme = useTheme();
+  const G = makeG(theme);
   const { snackbar, notify, handleClose } = useNotify();
 
-  const [deleting, setDeleting] = useState<number | null>(null); // เก็บ id ที่กำลังลบ
-
-  // Pagination states
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10); // Default rows per page
-
-  // Wrap fetchData in useCallback to prevent re-creation on every render
-  const fetchData = useCallback(() => {
-    fetch(`${API}/list?sort_order=desc`)      .then((res) => res.json())
-      .then((json) => {
-        console.log("📦 pawn list data:", json);
-        setData(Array.isArray(json) ? json : []);
-        setPage(0); // Reset page to 0 when data changes
-      })
-      .catch(() => notify("❌ โหลดข้อมูลไม่สำเร็จ", "error"));
-  }, [API]); // Dependencies for useCallback
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]); // Dependency for useEffect: fetchData function
-
-  const [search, setSearch] = useState<string>("");
-  const [period, setPeriod] = useState("all");
-
-  const periodData = period === "all" ? data : data.filter(item => {
-    const start = period === "day"   ? dayjs().startOf("day")
-                : period === "week"  ? dayjs().startOf("week")
-                : dayjs().startOf("month");
-    return !dayjs(item.date).isBefore(start);
-  });
-
-  // Filtered data based on search input
-  const filteredData = periodData.filter(
-    (item) =>
-      (item.date ? new Date(item.date).toLocaleDateString("th-TH").replace(/[\s]/g, '-') : '').includes(search.replace(/\s/g, '-')) ||
-      item.firstname.toLowerCase().includes(search.toLowerCase()) ||
-      item.lastname.toLowerCase().includes(search.toLowerCase()) ||
-      item.idcard.includes(search) ||
-      item.phone.includes(search)
-  );
-
-  // Calculate displayed data for the current page
-  const displayedData = filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
-  
+  const [data, setData]             = useState<PawnRecord[]>([]);
+  const [editIndex, setEditIndex]   = useState<number | null>(null);
+  const [form, setForm]             = useState<Partial<PawnRecord>>({});
+  const [isLoading, setIsLoading]   = useState(true);
+  const [deleting, setDeleting]     = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
-  
-  const handleDelete = (id: number) => {
-    setPendingDeleteId(id);
-    setConfirmOpen(true);
-  };  
+  const [page, setPage]             = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [search, setSearch]         = useState("");
+  const [period, setPeriod]         = useState("all");
+
+  const API = `${API_BASE}/pawn`;
+
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const res  = await fetch(`${API}/list?sort_order=desc`);
+      const json = await res.json();
+      setData(Array.isArray(json) ? json : []);
+      setPage(0);
+    } catch { notify("โหลดข้อมูลไม่สำเร็จ", "error"); }
+    finally   { setIsLoading(false); }
+  }, [API]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const periodData = useMemo(() => period === "all" ? data : data.filter(item => {
+    const start = period === "day" ? dayjs().startOf("day")
+                : period === "week" ? dayjs().startOf("week")
+                : dayjs().startOf("month");
+    return !dayjs(item.date).isBefore(start);
+  }), [data, period]);
+
+  const filteredData = useMemo(() => periodData.filter(item =>
+    (item.date ? new Date(item.date).toLocaleDateString("th-TH") : '').includes(search) ||
+    item.firstname.toLowerCase().includes(search.toLowerCase()) ||
+    item.lastname.toLowerCase().includes(search.toLowerCase()) ||
+    item.idcard.includes(search) ||
+    item.phone.includes(search)
+  ), [periodData, search]);
+
+  const displayedData = filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
+
+  const totals = useMemo(() => filteredData.reduce((acc, item) => ({
+    totalWeight: acc.totalWeight + (Number(item.weight) || 0),
+    totalAmount: acc.totalAmount + (Number(item.amount) || 0),
+  }), { totalWeight: 0, totalAmount: 0 }), [filteredData]);
+
+  const handleDelete = (id: number) => { setPendingDeleteId(id); setConfirmOpen(true); };
+
   const confirmDelete = async () => {
     if (!pendingDeleteId) return;
-    setDeleting(pendingDeleteId);
-    setConfirmOpen(false);
+    setDeleting(pendingDeleteId); setConfirmOpen(false);
     try {
       await fetch(`${API}/delete/${pendingDeleteId}`, { method: "DELETE" });
       await fetchData();
-    } finally {
-      setDeleting(null);
-      setPendingDeleteId(null);
-    }
+    } finally { setDeleting(null); setPendingDeleteId(null); }
   };
 
-  const startEdit = (index: number) => {
-    setEditIndex(index);
-    // Calculate the actual index in the filteredData array based on current page
-    const actualFilteredIndex = page * rowsPerPage + index;
-    const itemToEdit = filteredData[actualFilteredIndex];
-    setForm({
-      ...itemToEdit,
-      date: itemToEdit.date ? new Date(itemToEdit.date).toISOString().split('T')[0] : ''
-    });
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+  const startEdit = (i: number) => {
+    setEditIndex(i);
+    const item = filteredData[page * rowsPerPage + i];
+    setForm({ ...item, date: item.date ? new Date(item.date).toISOString().split('T')[0] : '' });
   };
 
   const saveEdit = async () => {
     if (editIndex === null) return;
-    // Calculate the actual index in the filteredData array to get the correct ID
-    const actualFilteredIndex = page * rowsPerPage + editIndex;
-    const id = filteredData[actualFilteredIndex].id;
-
+    const id = filteredData[page * rowsPerPage + editIndex].id;
     const res = await fetch(`${API}/update/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form),
     });
-    if (res.ok) {
-      notify("✅ แก้ไขเรียบร้อย", "success");
-      setEditIndex(null); // Exit edit mode
-      fetchData(); // Re-fetch data to reflect changes and ensure consistency
-    } else {
-      notify("❌ แก้ไขไม่สำเร็จ", "error");
-    }
+    if (res.ok) { notify("บันทึกเรียบร้อย", "success"); setEditIndex(null); fetchData(); }
+    else        { notify("บันทึกไม่สำเร็จ", "error"); }
   };
 
-  const getStatusChip = (status: string | null) => {
-    const stat = status || "DONE";
-    return <Chip label={stat} size="small" />;
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+
+  const statusChip = (status: string | null | undefined) => {
+    const s = status || "DONE";
+    const color = s === "DONE" ? G.success : s === "ACTIVE" ? G.accent : G.warning;
+    const bg    = s === "DONE" ? G.successBg : s === "ACTIVE" ? alpha(G.accent, 0.12) : G.warningBg;
+    return (
+      <Box sx={{ display: 'inline-flex', px: 1, py: 0.25, borderRadius: '999px', bgcolor: bg, color,
+        fontSize: 11, fontWeight: 600, letterSpacing: '.06em', fontFamily: MONO }}>
+        {s}
+      </Box>
+    );
   };
 
-  // Pagination handlers
-  const handleChangePage = (_: unknown, newPage: number) => {
-    setPage(newPage);
+  const paperSx = {
+    border: `1px solid ${G.border}`, bgcolor: G.paper, borderRadius: 3,
+    boxShadow: '0 1px 0 rgba(27,23,19,.04),0 8px 24px -14px rgba(27,23,19,.14)', overflow: 'hidden',
+  };
+  const thSx = {
+    fontSize: '0.78rem', fontWeight: 700, color: G.textMuted,
+    textTransform: 'uppercase' as const, letterSpacing: '.06em',
+    borderBottom: `1px solid ${G.border}`, bgcolor: G.bg, py: 1.5, px: 2,
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0); // Reset to first page when rows per page changes
-  };
+  if (isLoading) return (
+    <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: G.bg, minHeight: '100vh' }}>
+      <Skeleton width={200} height={40} sx={{ mb: 1 }} />
+      <Skeleton width={150} height={20} sx={{ mb: 3 }} />
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {[0,1].map(i => <Grid item xs={12} md={6} key={i}><Skeleton variant="rectangular" height={110} sx={{ borderRadius: 3 }} /></Grid>)}
+      </Grid>
+      <Skeleton variant="rectangular" height={56} sx={{ borderRadius: 3, mb: 2 }} />
+      <Skeleton variant="rectangular" height={380} sx={{ borderRadius: 3 }} />
+    </Box>
+  );
 
   return (
-    <Box maxWidth="xl" mx="auto" mt={4}>
-      <Paper elevation={4} sx={{ width: "100%", overflowX: "auto", p: 4, borderRadius: 3 }}>
-        <Typography variant="h5" gutterBottom color="primary" fontWeight={600}>
-          📄 รายการจำนำทอง
-        </Typography>
+    <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: G.bg, minHeight: '100vh', maxWidth: 1560, mx: 'auto' }}>
 
-        <Box mb={2} display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-          <ToggleButtonGroup value={period} exclusive onChange={(_, v) => v && setPeriod(v)} size="small">
-            <ToggleButton value="day">วัน</ToggleButton>
-            <ToggleButton value="week">สัปดาห์</ToggleButton>
-            <ToggleButton value="month">เดือน</ToggleButton>
-            <ToggleButton value="all">ทั้งหมด</ToggleButton>
-          </ToggleButtonGroup>
-          <TextField
-            variant="outlined"
-            placeholder="ค้นหา วันที่, ชื่อ, เลขบัตร, เบอร์โทรศัพท์..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            sx={{ width: 300 }}
-          />
-          <Button variant="contained" color="primary" onClick={() => navigate("/pawn")}>
-            ➕ เพิ่มรายการจำนำ
-          </Button>
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+        <Box>
+          <Typography sx={{
+            fontSize: 18, fontWeight: 600, color: G.text, letterSpacing: '-.01em',
+            display: 'flex', alignItems: 'center', gap: 1,
+            '&::before': { content: '""', width: 4, height: 20, bgcolor: G.accent, borderRadius: 1, display: 'inline-block' },
+          }}>
+            รายการจำนำทอง
+          </Typography>
+          <Typography sx={{ color: G.textMuted, fontSize: 12.5, mt: 0.5 }}>
+            จัดการธุรกรรมจำนำทองทั้งหมด · {filteredData.length} รายการ
+          </Typography>
         </Box>
+        <Button size="small" startIcon={<Refresh sx={{ fontSize: 15 }} />} onClick={fetchData}
+          sx={{ color: G.textSub, border: `1px solid ${G.border}`, borderRadius: '8px',
+            bgcolor: G.paper, fontWeight: 500, fontSize: 13, px: 2,
+            '&:hover': { bgcolor: G.bg, borderColor: G.accent, color: G.accent } }}>
+          รีเฟรช
+        </Button>
+      </Box>
 
-        <Table sx={{ minWidth: 1600 }}>
-          <TableHead sx={(theme) => ({
-            bgcolor: theme.palette.mode === "dark" ? "#2c2c2c" : "#f0f0f0",
-            "& th": {
-              color: theme.palette.mode === "dark" ? "#fff" : "#000",
-              fontWeight: "bold",
-            },
-          })}>
-            <TableRow>
-              <TableCell>วันที่</TableCell>
-              <TableCell>ชื่อ</TableCell>
-              <TableCell>นามสกุล</TableCell>
-              <TableCell>เลขบัตร</TableCell>
-              <TableCell>ที่อยู่</TableCell>
-              <TableCell>เบอร์</TableCell>
-              <TableCell>น้ำหนัก</TableCell>
-              <TableCell>จำนวนเงิน</TableCell>
-              <TableCell>หมายเหตุ</TableCell>
-              <TableCell>สถานะ</TableCell>
-              <TableCell>จัดการ</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {displayedData.length === 0 ? (
+      {/* Stats */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {[
+          { label: 'น้ำหนักรวม', value: totals.totalWeight.toFixed(2), unit: 'กรัม', color: G.brass },
+          { label: 'จำนวนเงินรวม', value: `฿${totals.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}`, unit: 'บาท', color: G.accent },
+        ].map(c => (
+          <Grid item xs={12} md={6} key={c.label}>
+            <Paper sx={paperSx} elevation={0}>
+              <Box sx={{ p: 2.5 }}>
+                <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textMuted, textTransform: 'uppercase', letterSpacing: '.1em', mb: 1.25 }}>{c.label}</Typography>
+                <Typography sx={{ fontFamily: MONO, fontSize: 26, fontWeight: 600, color: c.color, letterSpacing: '-.015em', lineHeight: 1 }}>{c.value}</Typography>
+                <Typography sx={{ fontSize: 11.5, color: G.textMuted, mt: 0.75 }}>{c.unit}</Typography>
+              </Box>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
+
+      {/* Controls */}
+      <Paper sx={{ ...paperSx, mb: 2 }} elevation={0}>
+        <Box sx={{ p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
+          <Box>
+            <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 0.75, fontFamily: MONO }}>ช่วงเวลา</Typography>
+            <Box sx={{ display: 'inline-flex', p: '3px', bgcolor: G.bg, border: `1px solid ${G.border}`, borderRadius: '10px' }}>
+              {PERIODS.map(p => (
+                <Box key={p.value} component="button" onClick={() => { setPeriod(p.value); setPage(0); }}
+                  sx={{ border: period === p.value ? `1px solid ${G.border}` : '1px solid transparent',
+                    borderRadius: '7px', px: 1.5, py: 0.625, cursor: 'pointer',
+                    bgcolor:    period === p.value ? G.paper : 'transparent',
+                    color:      period === p.value ? G.text  : G.textMuted,
+                    fontWeight: period === p.value ? 600 : 400,
+                    fontSize: 13, fontFamily: 'inherit', transition: 'all .15s',
+                    '&:hover': { color: G.text } }}>
+                  {p.label}
+                </Box>
+              ))}
+            </Box>
+          </Box>
+          <TextField variant="outlined" placeholder="ค้นหา ชื่อ, เลขบัตร, เบอร์..." value={search}
+            onChange={e => setSearch(e.target.value)} size="small"
+            sx={{ width: { xs: '100%', sm: 300 },
+              '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: G.bg, fontSize: 13,
+                '& fieldset': { borderColor: G.border },
+                '&:hover fieldset': { borderColor: G.accent },
+                '&.Mui-focused fieldset': { borderColor: G.accent } } }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: G.textMuted }} /></InputAdornment>,
+              endAdornment: search ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearch('')} sx={{ color: G.textMuted }}>
+                    <Delete sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            }}
+          />
+        </Box>
+      </Paper>
+
+      {/* Table */}
+      <Paper sx={{ ...paperSx, mb: 2 }} elevation={0}>
+        <Box sx={{ overflowX: 'auto' }}>
+          <Table sx={{ minWidth: 1100 }}>
+            <TableHead>
               <TableRow>
-                <TableCell colSpan={11} align="center">
-                  ไม่พบข้อมูล
-                </TableCell>
+                {['วันที่','ชื่อ','นามสกุล','เลขบัตร','ที่อยู่','เบอร์','น้ำหนัก','จำนวนเงิน','หมายเหตุ','สถานะ','จัดการ'].map((h, i) => (
+                  <TableCell key={h} align={i >= 6 && i <= 7 ? 'right' : i === 10 ? 'center' : 'left'} sx={thSx}>{h}</TableCell>
+                ))}
               </TableRow>
-            ) : (
-              displayedData.map((row, i) => (
-                <TableRow key={row.id}>
+            </TableHead>
+            <TableBody>
+              {displayedData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={11} align="center" sx={{ py: 8, color: G.textMuted }}>
+                    <SearchIcon sx={{ fontSize: 40, mb: 1, opacity: .4, display: 'block', mx: 'auto' }} />
+                    <Typography sx={{ fontSize: 14, color: G.textMuted }}>
+                      {search ? `ไม่พบ "${search}"` : 'ยังไม่มีข้อมูล'}
+                    </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : displayedData.map((row, i) => (
+                <TableRow key={row.id} sx={{
+                  '&:hover': { bgcolor: alpha(G.accent, 0.04) },
+                  '&:last-child td': { borderBottom: 0 },
+                  '& td': { borderColor: G.border, px: 2, py: 1.25 },
+                }}>
                   <TableCell>
                     {editIndex === i ? (
-                      <TextField
-                        name="date"
-                        type="date"
-                        value={form.date || ''}
-                        onChange={handleChange}
-                        fullWidth
-                      />
+                      <TextField size="small" name="date" type="date" value={form.date || ''} onChange={handleChange} sx={{ minWidth: 140 }} />
                     ) : (
-                      row.date ? new Date(row.date).toLocaleDateString("th-TH") : '-'
+                      <Typography sx={{ fontSize: 13, fontWeight: 600, color: G.text, fontFamily: MONO }}>
+                        {row.date ? new Date(row.date).toLocaleDateString("th-TH", { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
+                      </Typography>
                     )}
                   </TableCell>
-
                   {editIndex === i ? (
                     <>
-                      <TableCell><TextField variant="standard" name="firstname" value={form.firstname || ""} onChange={handleChange} /></TableCell>
-                      <TableCell><TextField variant="standard" name="lastname" value={form.lastname || ""} onChange={handleChange} /></TableCell>
-                      <TableCell><TextField variant="standard" name="idcard" value={form.idcard || ""} onChange={handleChange} /></TableCell>
-                      <TableCell><TextField variant="standard" name="address" value={form.address || ""} onChange={handleChange} /></TableCell>
-                      <TableCell><TextField variant="standard" name="phone" value={form.phone || ""} onChange={handleChange} /></TableCell>
-                      <TableCell><TextField variant="standard" name="weight" value={form.weight || ""} onChange={handleChange} type="number" /></TableCell>
-                      <TableCell><TextField variant="standard" name="amount" value={form.amount || ""} onChange={handleChange} type="number" /></TableCell>
-                      <TableCell><TextField variant="standard" name="remark" value={form.remark || ""} onChange={handleChange} /></TableCell>
+                      {['firstname','lastname','idcard','address','phone'].map(field => (
+                        <TableCell key={field}>
+                          <TextField size="small" name={field}
+                            value={(form as Record<string,unknown>)[field] as string || ''} onChange={handleChange} fullWidth />
+                        </TableCell>
+                      ))}
+                      <TableCell>
+                        <TextField size="small" name="weight" type="number" value={form.weight || ''} onChange={handleChange} fullWidth />
+                      </TableCell>
+                      <TableCell>
+                        <TextField size="small" name="amount" type="number" value={form.amount || ''} onChange={handleChange} fullWidth />
+                      </TableCell>
+                      <TableCell>
+                        <TextField size="small" name="remark" value={form.remark || ''} onChange={handleChange} fullWidth />
+                      </TableCell>
                     </>
                   ) : (
                     <>
-                      <TableCell>{row.firstname}</TableCell>
-                      <TableCell>{row.lastname}</TableCell>
-                      <TableCell>{row.idcard}</TableCell>
-                      <TableCell>{row.address}</TableCell>
-                      <TableCell>{row.phone}</TableCell>
-                      <TableCell>{row.weight}</TableCell>
-                      <TableCell>{row.amount}</TableCell>
-                      <TableCell>{row.remark}</TableCell>
+                      <TableCell><Typography sx={{ fontSize: 13, color: G.text }}>{row.firstname}</Typography></TableCell>
+                      <TableCell><Typography sx={{ fontSize: 13, color: G.text }}>{row.lastname}</Typography></TableCell>
+                      <TableCell><Typography sx={{ fontSize: 12, color: G.textSub, fontFamily: MONO }}>{row.idcard}</Typography></TableCell>
+                      <TableCell>
+                        <Tooltip title={row.address} arrow>
+                          <Typography sx={{ fontSize: 12, color: G.textSub, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {row.address}
+                          </Typography>
+                        </Tooltip>
+                      </TableCell>
+                      <TableCell><Typography sx={{ fontSize: 12, color: G.textSub, fontFamily: MONO }}>{row.phone}</Typography></TableCell>
+                      <TableCell align="right">
+                        <Typography sx={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: G.brass }}>{Number(row.weight).toFixed(2)}</Typography>
+                      </TableCell>
+                      <TableCell align="right">
+                        <Typography sx={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: G.accent }}>
+                          ฿{Number(row.amount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontSize: 12, color: G.textMuted, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {row.remark || '—'}
+                        </Typography>
+                      </TableCell>
                     </>
                   )}
-
-                  <TableCell>{getStatusChip(row.status)}</TableCell>
-                  <TableCell>
-                    {editIndex === i ? (
-                      <IconButton color="success" onClick={saveEdit}><Save /></IconButton>
-                    ) : (
-                      <IconButton color="primary" onClick={() => startEdit(i)}><Edit /></IconButton>
-                    )}
-                    <IconButton 
-                      color="error" 
-                      onClick={() => handleDelete(row.id)}
-                      disabled={deleting === row.id}
-                    >
-                      {deleting === row.id ? <CircularProgress size={20} color="error" /> : <Delete />}
-                    </IconButton>
+                  <TableCell>{statusChip(row.status)}</TableCell>
+                  <TableCell align="center">
+                    <Box sx={{ display: 'flex', gap: 0.75, justifyContent: 'center' }}>
+                      {editIndex === i ? (
+                        <Tooltip title="บันทึก" arrow>
+                          <IconButton size="small" onClick={saveEdit}
+                            sx={{ color: G.success, bgcolor: alpha(G.success, 0.1), borderRadius: '7px', '&:hover': { bgcolor: alpha(G.success, 0.18) } }}>
+                            <Save sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title="แก้ไข" arrow>
+                          <IconButton size="small" onClick={() => startEdit(i)}
+                            sx={{ color: G.accent, bgcolor: alpha(G.accent, 0.1), borderRadius: '7px', '&:hover': { bgcolor: alpha(G.accent, 0.18) } }}>
+                            <Edit sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="ลบ" arrow>
+                        <IconButton size="small" onClick={() => handleDelete(row.id)} disabled={deleting === row.id}
+                          sx={{ color: G.danger, bgcolor: alpha(G.danger, 0.1), borderRadius: '7px', '&:hover': { bgcolor: alpha(G.danger, 0.18) } }}>
+                          {deleting === row.id ? <CircularProgress size={14} sx={{ color: G.danger }} /> : <Delete sx={{ fontSize: 16 }} />}
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-
-        {/* Table Pagination */}
-        <TablePagination
-          rowsPerPageOptions={[5, 10, 25]}
-          component="div"
-          count={filteredData.length} // Total number of rows after filtering
-          rowsPerPage={rowsPerPage}
-          page={page}
-          onPageChange={handleChangePage}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="จำนวนแถวต่อหน้า:"
-          labelDisplayedRows={({ from, to, count }) =>
-            `แสดง ${from}-${to} จาก ${count !== -1 ? count : `มากกว่า ${to}`}`
-          }
-        />
-
-        <Box mt={4} textAlign="right">
-          <Button variant="outlined" color="info" onClick={() => navigate("/")}>
-            ⬅️ กลับหน้าแรก
-          </Button>
+              ))}
+              {displayedData.length > 0 && (
+                <TableRow sx={{ bgcolor: alpha(G.accent, 0.04), '& td': { borderTop: `1px solid ${G.border}`, py: 1.5, px: 2 } }}>
+                  <TableCell colSpan={6}>
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: G.textSub }}>รวม {filteredData.length} รายการ</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography sx={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: G.brass }}>{totals.totalWeight.toFixed(2)}</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography sx={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: G.accent }}>
+                      ฿{totals.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
+                    </Typography>
+                  </TableCell>
+                  <TableCell /><TableCell /><TableCell />
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Box>
+        <Box sx={{ borderTop: `1px solid ${G.border}` }}>
+          <TablePagination
+            rowsPerPageOptions={[5, 10, 25]}
+            component="div"
+            count={filteredData.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={(_, p) => setPage(p)}
+            onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+            labelRowsPerPage="แถวต่อหน้า:"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} จาก ${count}`}
+            sx={{ '& .MuiTablePagination-toolbar': { color: G.textMuted, fontSize: 12.5 } }}
+          />
         </Box>
       </Paper>
+
       <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
-        <Alert severity={snackbar.severity} onClose={handleClose}>
-          {snackbar.message}
-        </Alert>
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity={snackbar.severity} onClose={handleClose}>{snackbar.message}</Alert>
       </Snackbar>
-      <Dialog open={confirmOpen}>
-        <DialogTitle>ยืนยันการลบ</DialogTitle>
-        <DialogContent>คุณต้องการลบรายการนี้หรือไม่?</DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>ยกเลิก</Button>
-          <Button color="error" onClick={confirmDelete}>ลบ</Button>
+
+      <Dialog open={confirmOpen} PaperProps={{ sx: { borderRadius: 3, bgcolor: G.paper, border: `1px solid ${G.border}` } }}>
+        <DialogTitle sx={{ color: G.text, fontWeight: 600 }}>ยืนยันการลบ</DialogTitle>
+        <DialogContent><Typography sx={{ color: G.textSub }}>คุณต้องการลบรายการนี้หรือไม่?</Typography></DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setConfirmOpen(false)}
+            sx={{ color: G.textSub, border: `1px solid ${G.border}`, borderRadius: '8px' }}>ยกเลิก</Button>
+          <Button onClick={confirmDelete}
+            sx={{ bgcolor: G.danger, color: '#fff', borderRadius: '8px', '&:hover': { bgcolor: alpha(G.danger, 0.85) } }}>ลบ</Button>
         </DialogActions>
       </Dialog>
     </Box>

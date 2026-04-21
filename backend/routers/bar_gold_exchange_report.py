@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import BarGold
 from typing import List, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from sqlalchemy import desc # ใช้สำหรับเรียงลำดับ
 from datetime import datetime
 
@@ -21,8 +21,7 @@ class BarGoldExchangeRecord(BaseModel):
     weightGram: float
     # mode ไม่จำเป็นต้องแสดง แต่ถ้ามีไว้ก็ดี
     
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 @router.get("/bar-gold-exchange/history", response_model=List[BarGoldExchangeRecord])
 def get_exchange_history(db: Session = Depends(get_db)):

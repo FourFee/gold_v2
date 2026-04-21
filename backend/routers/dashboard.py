@@ -105,7 +105,6 @@ def get_summary(
             end_date_obj = next_month - timedelta(microseconds=1)
 
     # ✅ ตอนนี้ได้ start_date_obj และ end_date_obj แล้ว
-    print(f"DEBUG summary: period={period}, start_date={start_date_obj}, end_date={end_date_obj}")
     
     # ดึงข้อมูลในช่วงวันที่ที่กำหนด
     all_transactions_period = db.query(AllGoldTransaction).filter(
@@ -195,7 +194,6 @@ def get_all_transactions_graph_data(
     db: Session = Depends(get_db)
 ):
     # ✅ แก้ไข: จัดการกับพารามิเตอร์ต่างๆ
-    print(f"DEBUG graph: period={period}, date_str={date_str}, start_date={start_date}, end_date={end_date}")
     
     # 1. ถ้ามี start_date และ end_date จาก frontend
     if start_date and end_date:
@@ -233,7 +231,6 @@ def get_all_transactions_graph_data(
         
         end_date_for_query = selected_date
     
-    print(f"DEBUG graph: Querying from {start_date_for_query} to {end_date_for_query}")
 
     # ดึงข้อมูลในช่วงวันที่ที่กำหนด
     transactions = db.query(AllGoldTransaction).filter(

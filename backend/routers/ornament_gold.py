@@ -1,25 +1,17 @@
 #path: gold/backend/routers/bar_gold.py
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
-from database import SessionLocal
+from database import get_db
 from models import OrnamentGold
 from schemas import OrnamentGoldCreate
 from sqlalchemy import desc, asc
 
 router = APIRouter()
 
-# ✅ Dependency สำหรับเชื่อมต่อ DB
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 # ✅ สร้างข้อมูลทองรูปพรรณ
 @router.post("/ornament-gold/create")
 def create_ornament_gold(data: OrnamentGoldCreate, db: Session = Depends(get_db)):
-    obj = OrnamentGold(**data.dict())
+    obj = OrnamentGold(**data.model_dump())
     db.add(obj)
     db.commit()
     db.refresh(obj)
@@ -55,7 +47,7 @@ def update_ornament_gold(id: int, data: OrnamentGoldCreate, db: Session = Depend
     obj = db.query(OrnamentGold).filter(OrnamentGold.id == id).first()
     if obj is None:
         raise HTTPException(status_code=404, detail="ไม่พบข้อมูล")
-    for key, value in data.dict().items():
+    for key, value in data.model_dump().items():
         setattr(obj, key, value)
     db.commit()
     return {"status": "updated"}

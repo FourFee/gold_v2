@@ -1,7 +1,7 @@
-// path: gold/src/layout/MainLayout.tsx
 import React, { useState, useContext } from "react";
 import { Outlet, useLocation } from "react-router-dom";
 import { Link as RouterLink } from 'react-router-dom';
+import { useTheme } from "@mui/material/styles";
 
 import {
   Box,
@@ -17,316 +17,215 @@ import {
   Typography,
   IconButton,
   Divider,
-  alpha,
-  styled
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { Brightness4, Brightness7 } from "@mui/icons-material";
 import { ColorModeContext } from "../layout/ThemeContext";
 
-// Import icons
-import DashboardIcon from '@mui/icons-material/Dashboard';
+import DashboardIcon   from '@mui/icons-material/Dashboard';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
-import DiamondIcon from '@mui/icons-material/Diamond';
-import HistoryIcon from '@mui/icons-material/History';
-import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import ListAltIcon from '@mui/icons-material/ListAlt';
-import ReceiptIcon from '@mui/icons-material/Receipt';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import BarChartIcon from '@mui/icons-material/BarChart';
+import DiamondIcon     from '@mui/icons-material/Diamond';
+import HistoryIcon     from '@mui/icons-material/History';
+import SwapHorizIcon   from '@mui/icons-material/SwapHoriz';
+import ListAltIcon     from '@mui/icons-material/ListAlt';
+import ReceiptIcon     from '@mui/icons-material/Receipt';
+import InventoryIcon   from '@mui/icons-material/Inventory';
+import BarChartIcon    from '@mui/icons-material/BarChart';
 
-const drawerWidth = 280;
+import { makeG } from "../utils/dashboardTokens";
 
-// สร้าง styled component สำหรับ ListItemButton
-const StyledListItemButton = styled(ListItemButton)(({ theme }) => ({
-  borderRadius: 12,
-  margin: '6px 12px',
-  padding: '12px 16px',
-  transition: 'all 0.2s ease-in-out',
-  '&:hover': {
-    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-    transform: 'translateX(4px)',
-  },
-  '&.active': {
-    backgroundColor: alpha(theme.palette.primary.main, 0.15),
-    borderLeft: `4px solid ${theme.palette.primary.main}`,
-  }
-}));
+const drawerWidth = 264;
+const SERIF = '"Fraunces", serif';
+const MONO  = '"JetBrains Mono", ui-monospace, monospace';
 
-// เมนูหลัก
 const mainMenuItems = [
-  { 
-    text: "📌 จำนำทอง", 
-    icon: <AccountBalanceIcon sx={{ color: '#748ffc' }} />, 
-    path: "/pawn" 
-  },
-  { 
-    text: "🪙 ทองแท่ง", 
-    icon: <AccountBalanceIcon sx={{ color: '#ffd43b' }} />, 
-    path: "/bar" 
-  },
-  { 
-    text: "💍 ทองรูปพรรณ", 
-    icon: <DiamondIcon sx={{ color: '#cc5de8' }} />, 
-    path: "/ornament" 
-  },
-  { 
-    text: "📊 ธุรกรรมทองทั้งหมด", 
-    icon: <HistoryIcon sx={{ color: '#51cf66' }} />, 
-    path: "/all-transactions-create" 
-  },
-  { 
-    text: "🔄 แลกเปลี่ยนทองแท่ง", 
-    icon: <SwapHorizIcon sx={{ color: '#ff922b' }} />, 
-    path: "/bar-gold-exchange" 
-  },
+  { text: "หน้าแรก",              icon: <DashboardIcon />,       path: "/" },
+  { text: "จำนำทอง",             icon: <AccountBalanceIcon />,   path: "/pawn" },
+  { text: "ทองแท่ง",             icon: <AccountBalanceIcon />,   path: "/bar" },
+  { text: "ทองรูปพรรณ",          icon: <DiamondIcon />,          path: "/ornament" },
+  { text: "ธุรกรรมทองทั้งหมด",   icon: <HistoryIcon />,          path: "/all-transactions-create" },
+  { text: "แลกเปลี่ยนทองแท่ง",   icon: <SwapHorizIcon />,        path: "/bar-gold-exchange" },
 ];
 
-// เมนูรายการ
 const listMenuItems = [
-  { 
-    text: "รายการจำนำทอง", 
-    icon: <ListAltIcon sx={{ color: '#748ffc' }} />, 
-    path: "/pawn-list" 
-  },
-  { 
-    text: "รายการทองแท่ง", 
-    icon: <BarChartIcon sx={{ color: '#ffd43b' }} />, 
-    path: "/bar-list" 
-  },
-  { 
-    text: "รายการทองรูปพรรณ", 
-    icon: <ReceiptIcon sx={{ color: '#cc5de8' }} />, 
-    path: "/ornament-list" 
-  },
-  { 
-    text: "รายการธุรกรรมทองทั้งหมด", 
-    icon: <InventoryIcon sx={{ color: '#51cf66' }} />, 
-    path: "/all-transactions-list" 
-  },
-  { 
-    text: "ประวัติการแลกเปลี่ยนทองแท่ง", 
-    icon: <SwapHorizIcon sx={{ color: '#ff922b' }} />, 
-    path: "/bar-gold-exchange-history" 
-  },
+  { text: "รายการจำนำทอง",               icon: <ListAltIcon />,    path: "/pawn-list" },
+  { text: "รายการทองแท่ง",               icon: <BarChartIcon />,   path: "/bar-list" },
+  { text: "รายการทองรูปพรรณ",            icon: <ReceiptIcon />,    path: "/ornament-list" },
+  { text: "รายการธุรกรรมทั้งหมด",        icon: <InventoryIcon />,  path: "/all-transactions-list" },
+  { text: "ประวัติแลกเปลี่ยนทองแท่ง",   icon: <SwapHorizIcon />,  path: "/bar-gold-exchange-history" },
 ];
+
+function SectionLabel({ label, G }: { label: string; G: ReturnType<typeof makeG> }) {
+  return (
+    <Typography sx={{
+      px: 2.5, pt: 2.5, pb: 0.75,
+      fontSize: 10.5, fontWeight: 700, letterSpacing: '.1em', textTransform: 'uppercase',
+      color: G.textFaint, fontFamily: MONO,
+    }}>
+      {label}
+    </Typography>
+  );
+}
+
+function NavItem({ item, active, G }: {
+  item: { text: string; icon: React.ReactNode; path: string };
+  active: boolean;
+  G: ReturnType<typeof makeG>;
+}) {
+  return (
+    <ListItem disablePadding sx={{ px: 1.5, py: 0.25 }}>
+      <ListItemButton
+        component={RouterLink}
+        to={item.path}
+        sx={{
+          borderRadius: '10px',
+          px: 1.5, py: 1,
+          bgcolor:     active ? G.accent3 : 'transparent',
+          borderLeft:  active ? `3px solid ${G.accent}` : '3px solid transparent',
+          color:       active ? G.accent  : G.textSub,
+          transition: 'all .15s',
+          '& .MuiListItemIcon-root': {
+            color: active ? G.accent : G.textMuted,
+            minWidth: 36,
+          },
+          '&:hover': {
+            bgcolor: G.accent3,
+            color:   G.accent,
+            '& .MuiListItemIcon-root': { color: G.accent },
+          },
+        }}
+      >
+        <ListItemIcon sx={{ '& svg': { fontSize: 18 } }}>
+          {item.icon}
+        </ListItemIcon>
+        <ListItemText
+          primary={item.text}
+          primaryTypographyProps={{ fontSize: '0.875rem', fontWeight: active ? 600 : 400 }}
+        />
+      </ListItemButton>
+    </ListItem>
+  );
+}
 
 export default function MainLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const location = useLocation();
+  const location  = useLocation();
   const colorMode = useContext(ColorModeContext);
-
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
+  const theme     = useTheme();
+  const G         = makeG(theme);
 
   const drawer = (
-    <Box sx={{ width: drawerWidth, height: '100vh', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar />
-      <Divider />
-      
-      {/* เมนูหน้าแรก (Dashboard) */}
-      <Box sx={{ px: 2, py: 2 }}>
-        <ListItemButton 
-          component={RouterLink}
-          to="/"
-          sx={{ 
-            background: 'linear-gradient(135deg, #C9A84C 0%, #8B6914 100%)',
-            color: 'white',
-            margin: '12px 0',
-            '&:hover': {
-              background: 'linear-gradient(135deg, #8B6914 0%, #C9A84C 100%)',
-              transform: 'translateX(4px)',
-            }
-          }}
-          className={location.pathname === "/" ? "active" : ""}
-        >
-          <ListItemIcon>
-            <DashboardIcon sx={{ color: 'white' }} />
-          </ListItemIcon>
-          <ListItemText 
-            primary="หน้าแรก" 
-            primaryTypographyProps={{ 
-              fontWeight: 600,
-              fontSize: '1rem'
-            }}
-          />
-        </ListItemButton>
-      </Box>
-
-      {/* Section: ธุรกรรมหลัก */}
-      <Box sx={{ px: 2, py: 1 }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={600}>
-          ธุรกรรมหลัก
+    <Box sx={{
+      width: drawerWidth, height: '100vh',
+      display: 'flex', flexDirection: 'column',
+      bgcolor: G.paper,
+    }}>
+      {/* Brand */}
+      <Box sx={{ px: 2.5, pt: 3, pb: 2, borderBottom: `1px solid ${G.border}` }}>
+        <Typography sx={{ fontFamily: SERIF, fontWeight: 600, fontSize: 22, color: G.text, lineHeight: 1 }}>
+          ห้างทอง
+        </Typography>
+        <Typography sx={{ fontFamily: MONO, fontSize: 10.5, color: G.textMuted, mt: 0.5, letterSpacing: '.08em' }}>
+          GOLD MANAGEMENT · v1.0
         </Typography>
       </Box>
-      
-      <List sx={{ flex: 1, overflow: 'auto' }}>
-        {mainMenuItems.map((item) => (
-          <ListItem key={item.path} disablePadding sx={{ display: 'block' }}>
-              <ListItemButton
-                component={RouterLink}
-                to={item.path}
-                className={location.pathname === item.path ? "active" : ""}
-              >
-              <ListItemIcon>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText 
-                primary={item.text}
-                primaryTypographyProps={{ 
-                  fontSize: '0.95rem'
-                }}
-              />
-            </ListItemButton>
-          </ListItem>
+
+      {/* Main nav */}
+      <SectionLabel label="ธุรกรรมหลัก" G={G} />
+      <List disablePadding>
+        {mainMenuItems.map(item => (
+          <NavItem key={item.path} item={item} active={location.pathname === item.path} G={G} />
         ))}
       </List>
 
-      <Divider sx={{ my: 2 }} />
+      <Divider sx={{ mx: 2.5, my: 1.5, borderColor: G.border }} />
 
-      {/* Section: รายการทั้งหมด */}
-      <Box sx={{ px: 2, py: 1 }}>
-        <Typography variant="caption" color="text.secondary" fontWeight={600}>
-          รายการทั้งหมด
-        </Typography>
-      </Box>
-      
-      <List sx={{ flex: 1, overflow: 'auto' }}>
-        {listMenuItems.map((item) => (
-          <ListItem key={item.path} disablePadding sx={{ display: 'block' }}>
-              <ListItemButton
-                component={RouterLink}
-                to={item.path}
-                className={location.pathname === item.path ? "active" : ""}
-              >
-              <ListItemIcon>
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText 
-                primary={item.text}
-                primaryTypographyProps={{ 
-                  fontSize: '0.95rem'
-                }}
-              />
-            </ListItemButton>
-          </ListItem>
+      {/* List nav */}
+      <SectionLabel label="รายการทั้งหมด" G={G} />
+      <List disablePadding sx={{ flex: 1, overflow: 'auto' }}>
+        {listMenuItems.map(item => (
+          <NavItem key={item.path} item={item} active={location.pathname === item.path} G={G} />
         ))}
       </List>
 
       {/* Footer */}
-      <Box sx={{ 
-        p: 2, 
-        mt: 'auto',
-        backgroundColor: alpha('#D4AF37', 0.05),
-        borderTop: `1px solid ${alpha('#D4AF37', 0.1)}`
-      }}>
-        <Typography variant="caption" color="text.secondary" align="center">
-          ห้างทองจินดา
-        </Typography>
-        <Typography variant="caption" color="text.secondary" align="center" display="block">
-          v1.0.0
+      <Box sx={{ px: 2.5, py: 2, borderTop: `1px solid ${G.border}` }}>
+        <Typography sx={{ fontSize: 11, color: G.textFaint, fontFamily: MONO }}>
+          © 2567 ห้างทองจินดา
         </Typography>
       </Box>
     </Box>
   );
 
   return (
-    <Box sx={{ display: "flex", minHeight: '100vh' }}>
+    <Box sx={{ display: "flex", minHeight: '100vh', bgcolor: G.bg }}>
       <CssBaseline />
-      
+
       {/* AppBar */}
-      <AppBar
-        position="fixed"
-        sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
+      <AppBar position="fixed" elevation={0}
+        sx={{
+          zIndex: (t) => t.zIndex.drawer + 1,
+          bgcolor: G.paper,
+          borderBottom: `1px solid ${G.border}`,
+          color: G.text,
+        }}
       >
-        <Toolbar sx={{ 
-          justifyContent: "space-between",
-          minHeight: 64
-        }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <IconButton 
-              color="inherit" 
-              edge="start" 
-              onClick={handleDrawerToggle}
-              sx={{ 
-                mr: 2,
-                display: { sm: 'none' } 
-              }}
-            >
+        <Toolbar sx={{ justifyContent: "space-between", minHeight: 56 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <IconButton color="inherit" edge="start" onClick={() => setMobileOpen(v => !v)}
+              sx={{ display: { sm: 'none' } }}>
               <MenuIcon />
             </IconButton>
-            <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
-              🪙 ระบบจัดการทอง
+            <Typography sx={{ fontFamily: SERIF, fontWeight: 600, fontSize: 18, color: G.text }}>
+              ห้างทอง
             </Typography>
+            <Box sx={{
+              display: { xs: 'none', md: 'flex' }, alignItems: 'center',
+              px: 1.25, py: 0.3, borderRadius: '999px',
+              bgcolor: G.accent3, color: G.accent,
+              fontSize: 11, fontWeight: 600, letterSpacing: '.06em', fontFamily: MONO,
+            }}>
+              ระบบจัดการทอง
+            </Box>
           </Box>
-          
-          <IconButton 
-            onClick={colorMode?.toggleColorMode} 
-            color="inherit"
-            sx={{
-              backgroundColor: alpha('#000', 0.1),
-              '&:hover': {
-                backgroundColor: alpha('#000', 0.2),
-              }
-            }}
-          >
-            {colorMode?.mode === "dark" ? <Brightness7 /> : <Brightness4 />}
+
+          <IconButton onClick={colorMode?.toggleColorMode}
+            sx={{ color: G.textMuted, '&:hover': { color: G.text } }}>
+            {colorMode?.mode === "dark" ? <Brightness7 fontSize="small" /> : <Brightness4 fontSize="small" />}
           </IconButton>
         </Toolbar>
       </AppBar>
 
-      {/* Drawer สำหรับมือถือ */}
-      <Box
-        component="nav"
-        sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
-      >
-        <Drawer
-          variant="temporary"
-          open={mobileOpen}
-          onClose={handleDrawerToggle}
+      {/* Mobile drawer */}
+      <Box component="nav" sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}>
+        <Drawer variant="temporary" open={mobileOpen} onClose={() => setMobileOpen(false)}
           ModalProps={{ keepMounted: true }}
           sx={{
             display: { xs: 'block', sm: 'none' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
-              borderRight: `1px solid ${alpha('#D4AF37', 0.1)}`
-            },
-          }}
-        >
+            '& .MuiDrawer-paper': { width: drawerWidth, bgcolor: G.paper, borderRight: `1px solid ${G.border}` },
+          }}>
           {drawer}
         </Drawer>
-        
-        {/* Drawer สำหรับ desktop */}
-        <Drawer
-          variant="permanent"
+
+        {/* Desktop drawer */}
+        <Drawer variant="permanent" open
           sx={{
             display: { xs: 'none', sm: 'block' },
-            '& .MuiDrawer-paper': { 
-              boxSizing: 'border-box', 
-              width: drawerWidth,
-              borderRight: `1px solid ${alpha('#D4AF37', 0.1)}`
-            },
-          }}
-          open
-        >
+            '& .MuiDrawer-paper': { width: drawerWidth, bgcolor: G.paper, borderRight: `1px solid ${G.border}` },
+          }}>
           {drawer}
         </Drawer>
       </Box>
 
       {/* Main content */}
-      <Box
-        component="main"
-        sx={{
-          flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          backgroundColor: (theme) => theme.palette.background.default,
-          minHeight: '100vh'
-        }}
-      >
-        <Toolbar />
+      <Box component="main" sx={{
+        flexGrow: 1,
+        p: { xs: 2, md: 3 },
+        width: { sm: `calc(100% - ${drawerWidth}px)` },
+        bgcolor: G.bg,
+        minHeight: '100vh',
+      }}>
+        <Toolbar sx={{ minHeight: '56px !important' }} />
         <Outlet />
       </Box>
     </Box>
