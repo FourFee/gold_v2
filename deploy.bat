@@ -1,4 +1,4 @@
-@echo off
+de@echo off
 echo Deploying to server...
 
 echo [1/3] Building frontend...
@@ -10,7 +10,7 @@ if %errorlevel% neq 0 (
 )
 
 echo [2/3] Uploading frontend...
-scp -r build/ root@178.128.80.147:/var/www/html/frontend/
+scp -r build/ root@178.128.80.147:/var/www/html/
 
 echo [3/3] Uploading backend (excluding database)...
 scp backend/*.py backend/routers/*.py backend/requirements.txt root@178.128.80.147:~/gold/backend/
