@@ -1,492 +1,363 @@
 // path: gold/src/pages/AllGoldTransactionsList.tsx
-
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import dayjs from "dayjs";
 import {
-  Box,
-  Paper,
-  Typography,
-  Table,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableBody,
-  Button,
-  TextField,
-  IconButton,
-  TablePagination,
-  CircularProgress,
-  ToggleButton,
-  ToggleButtonGroup
+  Box, Paper, Typography, Table, TableHead, TableRow, TableCell, TableBody,
+  TextField, IconButton, TablePagination, CircularProgress,
+  InputAdornment, Tooltip, Button, Grid, alpha,
 } from "@mui/material";
-import { Edit, Save, Delete } from "@mui/icons-material";
 import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { Edit, Save, Delete, Search as SearchIcon, Refresh } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
+import { Snackbar, Alert } from "@mui/material";
 import { API_BASE } from "../config";
 import { useNotify } from "../hooks/useNotify";
-import { Snackbar, Alert } from "@mui/material";
+import { makeG } from "../utils/dashboardTokens";
 import { AllGoldTransactionRecord } from "../types";
 
+const MONO = '"JetBrains Mono", ui-monospace, monospace';
+
+const PERIODS = [
+  { value: 'day',   label: 'วัน'      },
+  { value: 'week',  label: 'สัปดาห์'  },
+  { value: 'month', label: 'เดือน'    },
+  { value: 'all',   label: 'ทั้งหมด'  },
+] as const;
+
+const NUM_FIELDS = [
+  'redeem','interest','pawn','expenses',
+  'buyIn','exchange','sellOut',
+  'diamondBuyIn','diamondSellOut','platedGold',
+] as const;
+
 export default function AllGoldTransactionsList() {
-  const [data, setData] = useState<AllGoldTransactionRecord[]>([]);
-  const [editIndex, setEditIndex] = useState<number | null>(null);
-  const [form, setForm] = useState<Partial<AllGoldTransactionRecord>>({}); // State to hold data being edited
-  const navigate = useNavigate();
+  const theme = useTheme();
+  const G = makeG(theme);
+  const { snackbar, notify, handleClose } = useNotify();
 
-  // 📌 API Endpoint for All Gold Transactions
-  const API = `${API_BASE}/all-gold-transactions`;
-
-  const [deleting, setDeleting] = useState<number | null>(null);
+  const [data, setData]             = useState<AllGoldTransactionRecord[]>([]);
+  const [editIndex, setEditIndex]   = useState<number | null>(null);
+  const [form, setForm]             = useState<Partial<AllGoldTransactionRecord>>({});
+  const [deleting, setDeleting]     = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+  const [page, setPage]             = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [search, setSearch]         = useState("");
+  const [period, setPeriod]         = useState("all");
 
-  // 🌟🌟🌟 เพิ่ม State สำหรับ Pagination 🌟🌟🌟
-  const [page, setPage] = useState(0); // เลขหน้าปัจจุบัน (เริ่มต้นที่ 0)
-  const [rowsPerPage, setRowsPerPage] = useState(10); // จำนวนรายการต่อหน้า (ค่าเริ่มต้น 10)
+  const API = `${API_BASE}/all-gold-transactions`;
 
-  const { snackbar, notify, handleClose } = useNotify();
-  
-  // 📌 Function to fetch data from the backend
   const fetchData = useCallback(() => {
-  fetch(`${API}/list?sort_order=desc`)
-    .then((res) => res.json())
-    .then((json) => {
-      console.log("📦 All gold transactions list data:", json);
-      setData(Array.isArray(json) ? json : []);
-    })
-    .catch((err) => {
-      console.error("❌ Failed to load data:", err);
-      notify("ไม่สามารถโหลดรายละเอียดรายการได้", "error");
-    });
-}, [API]);
+    fetch(`${API}/list?sort_order=desc`)
+      .then(r => r.json())
+      .then(json => { setData(Array.isArray(json) ? json : []); setPage(0); })
+      .catch(() => notify("โหลดข้อมูลไม่สำเร็จ", "error"));
+  }, [API]);
 
-useEffect(() => {
-  fetchData();
-}, [fetchData]);
-  const [search, setSearch] = useState<string>("");
-  const [period, setPeriod] = useState("all");
+  useEffect(() => { fetchData(); }, [fetchData]);
 
-  const periodData = period === "all" ? data : data.filter(item => {
-    const start = period === "day"   ? dayjs().startOf("day")
-                : period === "week"  ? dayjs().startOf("week")
+  const periodData = useMemo(() => period === "all" ? data : data.filter(item => {
+    const start = period === "day" ? dayjs().startOf("day")
+                : period === "week" ? dayjs().startOf("week")
                 : dayjs().startOf("month");
     return !dayjs(item.date).isBefore(start);
-  });
+  }), [data, period]);
 
-  const filteredData = periodData.filter((item) =>
+  const filteredData = useMemo(() => periodData.filter(item =>
     (item.date ? new Date(item.date).toLocaleDateString("th-TH") : "").includes(search) ||
     String(item.redeem || "").includes(search) ||
-    String(item.buyIn || "").includes(search) ||
+    String(item.buyIn  || "").includes(search) ||
     String(item.sellOut || "").includes(search)
-  );
+  ), [periodData, search]);
 
-  // 3. เปลี่ยน displayedData ให้ slice จาก filteredData แทน data
   const displayedData = filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
-  // 🌟🌟🌟 Handler สำหรับเปลี่ยนหน้า 🌟🌟🌟
-  const handleChangePage = (event: unknown, newPage: number) => {
-    setPage(newPage);
-  };
+  const totals = useMemo(() => data.reduce((acc, item) => {
+    NUM_FIELDS.forEach(f => { acc[f] = (acc[f] || 0) + (item[f] || 0); });
+    return acc;
+  }, {} as Record<string, number>), [data]);
 
-  // 🌟🌟🌟 Handler สำหรับเปลี่ยนจำนวนรายการต่อหน้า 🌟🌟🌟
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
-    setPage(0); // กลับไปหน้าแรกเมื่อเปลี่ยนจำนวนรายการต่อหน้า
-  };
+  const startEdit = (i: number) => { setEditIndex(i); setForm({ ...displayedData[i] }); };
 
-  // 📌 Start editing a row
-  const startEdit = (index: number) => {
-    setEditIndex(index);
-    setForm({ ...displayedData[index] });
-  };
-
-  // 📌 Handle changes in the editable text fields
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    // For numeric fields, ensure value is a number or empty string
-    const newValue = (name === "redeem" || name === "interest" || name === "pawn" ||
-                      name === "buyIn" || name === "exchange" || name === "sellOut"||
-                      name === "expenses" || name === "diamondBuyIn" || name === "diamondSellOut" 
-                      || name === "platedGold") // 🌟 เพิ่มช่องเก็บ ทองชุบ
-                      ? (value === "" ? "" : parseFloat(value))
-                      : value;
-    setForm((prevForm: any) => ({
-      ...prevForm,
-      [name]: newValue,
-    }));
+    const parsed = NUM_FIELDS.includes(name as typeof NUM_FIELDS[number])
+      ? (value === "" ? "" : parseFloat(value))
+      : value;
+    setForm(f => ({ ...f, [name]: parsed }));
   };
 
-  // 📌 Save edited row
   const saveEdit = async () => {
-    if (editIndex === null) return; // Should not happen if startEdit was called
-
-    const itemToUpdate = form;
+    if (editIndex === null) return;
     try {
-      const response = await fetch(`${API}/update/${itemToUpdate.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(itemToUpdate),
+      const res = await fetch(`${API}/update/${form.id}`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form),
       });
-
-      if (response.ok) {
-        notify("✅ อัปเดตข้อมูลสำเร็จ!", "success");
-        fetchData(); // Re-fetch data to show the updated list
-        setEditIndex(null); // Exit edit mode
-        setForm({}); // Clear form state
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to update data");
-      }
-    } catch (err) {
-      console.error("Error updating data:", err);
-      notify("ไม่สามารถโหลดรายละเอียดรายการได้", "error");
-    }
+      if (!res.ok) throw new Error();
+      notify("อัปเดตสำเร็จ", "success");
+      fetchData(); setEditIndex(null); setForm({});
+    } catch { notify("อัปเดตไม่สำเร็จ", "error"); }
   };
 
-  // 📌 Delete a row
-  const handleDelete = (id: number) => {
-    setPendingDeleteId(id);
-    setConfirmOpen(true);
-  };
+  const handleDelete = (id: number) => { setPendingDeleteId(id); setConfirmOpen(true); };
 
   const confirmDelete = async () => {
     if (!pendingDeleteId) return;
-    setDeleting(pendingDeleteId);
-    setConfirmOpen(false);
+    setDeleting(pendingDeleteId); setConfirmOpen(false);
     try {
       await fetch(`${API}/delete/${pendingDeleteId}`, { method: "DELETE" });
-      await fetchData();
-    } finally {
-      setDeleting(null);
-      setPendingDeleteId(null);
-    }
+      fetchData();
+    } finally { setDeleting(null); setPendingDeleteId(null); }
   };
 
-  // ✅ ส่วนการคำนวณผลรวมทั้งหมด
-  const totals = data.reduce(
-    (acc, item) => {
-      acc.redeem += item.redeem || 0;
-      acc.interest += item.interest || 0;
-      acc.pawn += item.pawn || 0;
-      acc.buyIn += item.buyIn || 0;
-      acc.exchange += item.exchange || 0;
-      acc.sellOut += item.sellOut || 0;
-      acc.expenses += item.expenses || 0;
-      acc.diamondBuyIn += item.diamondBuyIn || 0;
-      acc.diamondSellOut += item.diamondSellOut || 0;
-      acc.platedGold += item.platedGold || 0;
-      return acc;
-    },
-    { redeem: 0, interest: 0, pawn: 0, buyIn: 0, exchange: 0, sellOut: 0, expenses: 0, diamondBuyIn: 0, diamondSellOut: 0, platedGold: 0 }
-  ); 
+  const paperSx = {
+    border: `1px solid ${G.border}`, bgcolor: G.paper, borderRadius: 3,
+    boxShadow: '0 1px 0 rgba(27,23,19,.04),0 8px 24px -14px rgba(27,23,19,.14)', overflow: 'hidden',
+  };
+  const thSx = {
+    fontSize: '0.72rem', fontWeight: 700, color: G.textMuted,
+    textTransform: 'uppercase' as const, letterSpacing: '.06em',
+    borderBottom: `1px solid ${G.border}`, bgcolor: G.bg, py: 1.5, px: 1.5, whiteSpace: 'nowrap' as const,
+  };
+
+  const fmt = (v: number | undefined | null) =>
+    (v || 0).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const COLS: { key: string; label: string; color?: string }[] = [
+    { key: 'redeem',       label: 'ไถ่ (฿)',           color: G.success },
+    { key: 'interest',     label: 'ดอก (฿)',            color: G.success },
+    { key: 'pawn',         label: 'จำนำ (฿)',           color: G.danger  },
+    { key: 'expenses',     label: 'ค่าใช้จ่าย (฿)',     color: G.warning },
+    { key: 'buyIn',        label: 'ซื้อเข้า (g)',        color: G.accent  },
+    { key: 'exchange',     label: 'เปลี่ยน (g)',         color: G.accent  },
+    { key: '_buyEx',       label: 'ซื้อ+เปลี่ยน (g)',   color: G.accent  },
+    { key: 'sellOut',      label: 'ขายออก (g)',          color: G.danger  },
+    { key: 'diamondBuyIn', label: 'เพชรซื้อ (฿)',        color: '#9c3a2a' },
+    { key: 'diamondSellOut',label: 'เพชรขาย (฿)',        color: G.success },
+    { key: 'platedGold',   label: 'ทองชุบ (g)',          color: G.textSub },
+  ];
 
   return (
-    <Box maxWidth="xl" mx="auto" mt={4}>
-      <Paper elevation={4} sx={{ p: 4, borderRadius: 3 }}>
-        <Typography variant="h5" gutterBottom color="primary" fontWeight={600} mb={3}>
-          📊 รายการธุรกรรมทองทั้งหมด
-        </Typography>
-        <Box mb={2} display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-          <ToggleButtonGroup value={period} exclusive onChange={(_, v) => v && setPeriod(v)} size="small">
-            <ToggleButton value="day">วัน</ToggleButton>
-            <ToggleButton value="week">สัปดาห์</ToggleButton>
-            <ToggleButton value="month">เดือน</ToggleButton>
-            <ToggleButton value="all">ทั้งหมด</ToggleButton>
-          </ToggleButtonGroup>
-          <TextField
-            variant="outlined"
-            placeholder="ค้นหา วันที่, ยอดไถ่, ซื้อเข้า, ขายออก..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            sx={{ width: 300 }}
-          />
-          <Button variant="contained" color="primary"
-            onClick={() => navigate("/all-transactions-create")}>
-            ➕ เพิ่มรายการ
-          </Button>
+    <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: G.bg, minHeight: '100vh', maxWidth: 1800, mx: 'auto' }}>
+
+      {/* Header */}
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+        <Box>
+          <Typography sx={{
+            fontSize: 18, fontWeight: 600, color: G.text, letterSpacing: '-.01em',
+            display: 'flex', alignItems: 'center', gap: 1,
+            '&::before': { content: '""', width: 4, height: 20, bgcolor: G.accent, borderRadius: 1, display: 'inline-block' },
+          }}>
+            รายการธุรกรรมทองทั้งหมด
+          </Typography>
+          <Typography sx={{ color: G.textMuted, fontSize: 12.5, mt: 0.5 }}>
+            บันทึกธุรกรรมประจำวัน · {filteredData.length} รายการ
+          </Typography>
         </Box>
-        <Table size="small">
-          <TableHead>
-            <TableRow sx={{ "& > th": { fontWeight: "bold", fontSize: "0.95rem" } }}>
-              <TableCell>วันที่</TableCell>
-              <TableCell>ไถ่ (บาท)</TableCell>
-              <TableCell>ดอก (บาท)</TableCell>
-              <TableCell>จำนำ (บาท)</TableCell>
-              <TableCell>ค่าใช้จ่าย (บาท)</TableCell>
-              <TableCell>ซื้อเข้า (กรัม)</TableCell>
-              <TableCell>เปลี่ยน (กรัม)</TableCell>
-              <TableCell>ผลรวม ซื้อเข้า + เปลี่ยน (กรัม)</TableCell>
-              <TableCell>ขายออก (กรัม)</TableCell>
-              <TableCell>ซื้อเข้าเพชร (บาท)</TableCell>
-              <TableCell>ขายออกเพชร (บาท)</TableCell>
-              <TableCell>ทองชุบ (กรัม)</TableCell> {/* 🌟 เพิ่มคอลัมน์ ทองชุบ */}
-              <TableCell>จัดการ</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {/* 🌟🌟🌟 เปลี่ยนมาใช้ displayedData 🌟🌟🌟 */}
-            {displayedData.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={13} align="center">
-                  ไม่มีข้อมูลธุรกรรมทอง
-                </TableCell>
-              </TableRow>
-            ) : (
-              displayedData.map((item, i) => (
-                <TableRow key={item.id}>
-                  {/* Date field */}
-                  <TableCell>
-                    {editIndex === i ? (
-                      <TextField
-                        name="date"
-                        type="date"
-                        value={form.date ? form.date.split('T')[0] : ''} // Format date for input type="date"
-                        onChange={handleChange}
-                        size="small"
-                        InputLabelProps={{ shrink: true }}
-                      />
-                    ) : (
-                      // Display date in DD/MM/YYYY format
-                      item.date ? new Date(item.date).toLocaleDateString('th-TH') : ''
-                    )}
-                  </TableCell>
+        <Button size="small" startIcon={<Refresh sx={{ fontSize: 15 }} />} onClick={fetchData}
+          sx={{ color: G.textSub, border: `1px solid ${G.border}`, borderRadius: '8px',
+            bgcolor: G.paper, fontWeight: 500, fontSize: 13, px: 2,
+            '&:hover': { bgcolor: G.bg, borderColor: G.accent, color: G.accent } }}>
+          รีเฟรช
+        </Button>
+      </Box>
 
-                  {/* Redeem field */}
-                  <TableCell>
-                    {editIndex === i ? (
-                      <TextField
-                        name="redeem"
-                        type="number"
-                        value={form.redeem}
-                        onChange={handleChange}
-                        size="small"
-                        sx={{ width: 100 }}
-                      />
-                    ) : (
-                      item.redeem
-                    )}
-                  </TableCell>
+      {/* Summary stat cards */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {[
+          { label: 'รายได้รวม (ไถ่+ดอก)',   value: `฿${fmt(totals.redeem + totals.interest)}`,    color: G.success },
+          { label: 'จำนำรวม',               value: `฿${fmt(totals.pawn)}`,                         color: G.danger  },
+          { label: 'ทองซื้อ+เปลี่ยน',       value: `${fmt(totals.buyIn + totals.exchange)} g`,     color: G.accent  },
+          { label: 'ทองขายออก',             value: `${fmt(totals.sellOut)} g`,                     color: '#9c3a2a' },
+        ].map(c => (
+          <Grid item xs={6} md={3} key={c.label}>
+            <Paper sx={paperSx} elevation={0}>
+              <Box sx={{ p: 2.25 }}>
+                <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: G.textMuted, textTransform: 'uppercase', letterSpacing: '.1em', mb: 1 }}>{c.label}</Typography>
+                <Typography sx={{ fontFamily: MONO, fontSize: { xs: 16, md: 20 }, fontWeight: 600, color: c.color, letterSpacing: '-.01em', lineHeight: 1 }}>{c.value}</Typography>
+              </Box>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
 
-                  {/* Interest field */}
-                  <TableCell>
-                    {editIndex === i ? (
-                      <TextField
-                        name="interest"
-                        type="number"
-                        value={form.interest}
-                        onChange={handleChange}
-                        size="small"
-                        sx={{ width: 100 }}
-                      />
-                    ) : (
-                      item.interest
-                    )}
-                  </TableCell>
-
-                  {/* Pawn field */}
-                  <TableCell>
-                    {editIndex === i ? (
-                      <TextField
-                        name="pawn"
-                        type="number"
-                        value={form.pawn}
-                        onChange={handleChange}
-                        size="small"
-                        sx={{ width: 100 }}
-                      />
-                    ) : (
-                      item.pawn
-                    )}
-                  </TableCell>
-
-                  {/* ✅ Expenses field */}
-                  <TableCell>
-                    {editIndex === i ? (
-                      <TextField
-                        name="expenses"
-                        type="number"
-                        value={form.expenses}
-                        onChange={handleChange}
-                        size="small"
-                        sx={{ width: 100 }}
-                      />
-                    ) : (
-                      item.expenses?.toFixed(2)
-                    )}
-                  </TableCell>
-
-                  {/* Buy In field */}
-                  <TableCell>
-                    {editIndex === i ? (
-                      <TextField
-                        name="buyIn"
-                        type="number"
-                        value={form.buyIn}
-                        onChange={handleChange}
-                        size="small"
-                        sx={{ width: 100 }}
-                      />
-                    ) : (
-                      item.buyIn
-                    )}
-                  </TableCell>
-
-                  {/* Exchange field */}
-                  <TableCell>
-                    {editIndex === i ? (
-                      <TextField
-                        name="exchange"
-                        type="number"
-                        value={form.exchange}
-                        onChange={handleChange}
-                        size="small"
-                        sx={{ width: 100 }}
-                      />
-                    ) : (
-                      item.exchange
-                    )}
-                  </TableCell>
-
-                  {/* ✅ total_buy_in_exchange field (อ่านอย่างเดียว) */}
-                  <TableCell>
-                    {(item.buyIn + item.exchange || 0).toFixed(2)}
-                  </TableCell>
-
-                  {/* Sell Out field */}
-                  <TableCell>
-                    {editIndex === i ? (
-                      <TextField
-                        name="sellOut"
-                        type="number"
-                        value={form.sellOut}
-                        onChange={handleChange}
-                        size="small"
-                        sx={{ width: 100 }}
-                      />
-                    ) : (
-                      item.sellOut
-                    )}
-                  </TableCell>
-
-                  {/* ✅ New TableCell for Diamond Buy-In */}
-                  <TableCell>
-                    {editIndex === i ? (
-                      <TextField
-                        name="diamondBuyIn"
-                        type="number"
-                        value={form.diamondBuyIn}
-                        onChange={handleChange}
-                        size="small"
-                        sx={{ width: 100 }}
-                      />
-                    ) : (
-                      (item.diamondBuyIn || 0).toFixed(2) // Display with 2 decimal places
-                    )}
-                  </TableCell>
-
-                  {/* ✅ New TableCell for Diamond Sell-Out */}
-                  <TableCell>
-                    {editIndex === i ? (
-                      <TextField
-                        name="diamondSellOut"
-                        type="number"
-                        value={form.diamondSellOut}
-                        onChange={handleChange}
-                        size="small"
-                        sx={{ width: 100 }}
-                      />
-                    ) : (
-                      (item.diamondSellOut || 0).toFixed(2) // Display with 2 decimal places
-                    )}
-                  </TableCell>
-
-                  <TableCell>
-                    {editIndex === i ? (
-                      <TextField
-                        name="platedGold"
-                        type="number"
-                        value={form.platedGold}
-                        onChange={handleChange}
-                        size="small"
-                        sx={{ width: 100 }}
-                      />
-                    ) : (
-                      (item.platedGold || 0).toFixed(2) // Display with 2 decimal places
-                    )}
-                  </TableCell>
-
-                  {/* Action Buttons */}
-                  <TableCell>
-                    {editIndex === i ? (
-                      <IconButton color="success" onClick={saveEdit}><Save /></IconButton>
-                    ) : (
-                      <IconButton color="primary" onClick={() => startEdit(i)}><Edit /></IconButton>
-                    )}
-                    <IconButton 
-                      color="error" 
-                      onClick={() => handleDelete(item.id)}
-                      disabled={deleting === item.id}
-                    >
-                      {deleting === item.id ? <CircularProgress size={20} color="error" /> : <Delete />}
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-            {/* ✅ ส่วนแสดงผลรวมทั้งหมดที่ท้ายตาราง */}
-            <TableRow sx={{ "& > th": { fontWeight: "bold", fontSize: "1rem" } }}>
-                <TableCell>รวม</TableCell>
-                <TableCell>{totals.redeem.toFixed(2)}</TableCell>
-                <TableCell>{totals.interest.toFixed(2)}</TableCell>
-                <TableCell>{totals.pawn.toFixed(2)}</TableCell>
-                <TableCell>{totals.expenses.toFixed(2)}</TableCell>
-                <TableCell>{totals.buyIn.toFixed(2)}</TableCell>
-                <TableCell>{totals.exchange.toFixed(2)}</TableCell>
-                <TableCell>{(totals.buyIn + totals.exchange).toFixed(2)}</TableCell> {/* Total BuyIn + Exchange */}
-                <TableCell>{totals.sellOut.toFixed(2)}</TableCell>
-                <TableCell>{totals.diamondBuyIn.toFixed(2)}</TableCell> {/* แสดงผลรวม diamondBuyIn */}
-                <TableCell>{totals.diamondSellOut.toFixed(2)}</TableCell> {/* แสดงผลรวม diamondSellOut */}
-                <TableCell>{totals.platedGold.toFixed(2)}</TableCell> {/* 🌟 แสดงผลรวมทองชุบ */}
-                <TableCell></TableCell> {/* ช่องว่างสำหรับคอลัมน์จัดการ */}
-            </TableRow>
-            </TableBody>
-          </Table>
-
-        {/* 🌟🌟🌟 เพิ่ม TablePagination Component 🌟🌟🌟 */}
-        <TablePagination
-          rowsPerPageOptions={[10, 25, 50, 100]} // ตัวเลือกจำนวนรายการต่อหน้า
-          component="div"
-          count={filteredData.length} // เดิมเป็น data.length
-          rowsPerPage={rowsPerPage} // จำนวนรายการต่อหน้าปัจจุบัน
-          page={page} // หน้าปัจจุบัน
-          onPageChange={handleChangePage} // Handler เมื่อเปลี่ยนหน้า
-          onRowsPerPageChange={handleChangeRowsPerPage} // Handler เมื่อเปลี่ยนจำนวนรายการต่อหน้า
-          labelRowsPerPage="รายการต่อหน้า:" // ข้อความกำกับ
-          labelDisplayedRows={({ from, to, count }) =>
-            `แสดง ${from}-${to} จาก ${count !== -1 ? count : `มากกว่า ${to}`}`
-          } // รูปแบบข้อความแสดงหน้า
-          
-
-        />
-
-        <Box mt={4} textAlign="right">
-          <Button variant="outlined" color="info" onClick={() => navigate("/")}>
-            ⬅️ กลับหน้าแรก
-          </Button>
+      {/* Controls */}
+      <Paper sx={{ ...paperSx, mb: 2 }} elevation={0}>
+        <Box sx={{ p: 2.5, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 2 }}>
+          <Box>
+            <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 0.75, fontFamily: MONO }}>ช่วงเวลา</Typography>
+            <Box sx={{ display: 'inline-flex', p: '3px', bgcolor: G.bg, border: `1px solid ${G.border}`, borderRadius: '10px' }}>
+              {PERIODS.map(p => (
+                <Box key={p.value} component="button" onClick={() => { setPeriod(p.value); setPage(0); }}
+                  sx={{ border: period === p.value ? `1px solid ${G.border}` : '1px solid transparent',
+                    borderRadius: '7px', px: 1.5, py: 0.625, cursor: 'pointer',
+                    bgcolor:    period === p.value ? G.paper : 'transparent',
+                    color:      period === p.value ? G.text  : G.textMuted,
+                    fontWeight: period === p.value ? 600 : 400,
+                    fontSize: 13, fontFamily: 'inherit', transition: 'all .15s',
+                    '&:hover': { color: G.text } }}>
+                  {p.label}
+                </Box>
+              ))}
+            </Box>
+          </Box>
+          <TextField variant="outlined" placeholder="ค้นหา วันที่, ยอด..." value={search}
+            onChange={e => setSearch(e.target.value)} size="small"
+            sx={{ width: { xs: '100%', sm: 280 },
+              '& .MuiOutlinedInput-root': { borderRadius: '10px', bgcolor: G.bg, fontSize: 13,
+                '& fieldset': { borderColor: G.border },
+                '&:hover fieldset': { borderColor: G.accent },
+                '&.Mui-focused fieldset': { borderColor: G.accent } } }}
+            InputProps={{
+              startAdornment: <InputAdornment position="start"><SearchIcon sx={{ fontSize: 16, color: G.textMuted }} /></InputAdornment>,
+              endAdornment: search ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearch('')} sx={{ color: G.textMuted }}>
+                    <Delete sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            }}
+          />
         </Box>
       </Paper>
+
+      {/* Table */}
+      <Paper sx={{ ...paperSx, mb: 2 }} elevation={0}>
+        <Box sx={{ overflowX: 'auto' }}>
+          <Table size="small" sx={{ minWidth: 1400 }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={thSx}>วันที่</TableCell>
+                {COLS.map(c => <TableCell key={c.key} align="right" sx={thSx}>{c.label}</TableCell>)}
+                <TableCell align="center" sx={thSx}>จัดการ</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {displayedData.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={13} align="center" sx={{ py: 8 }}>
+                    <Typography sx={{ fontSize: 14, color: G.textMuted }}>ไม่มีข้อมูลธุรกรรม</Typography>
+                  </TableCell>
+                </TableRow>
+              ) : displayedData.map((item, i) => (
+                <TableRow key={item.id} sx={{
+                  bgcolor: i % 2 !== 0 ? alpha(G.accent, 0.03) : 'transparent',
+                  '&:hover': { bgcolor: `${alpha(G.accent, 0.08)} !important` },
+                  '&:last-child td': { borderBottom: 0 },
+                  '& td': { borderColor: G.border, px: 1.5, py: 1 },
+                }}>
+                  <TableCell sx={{ minWidth: 100 }}>
+                    {editIndex === i ? (
+                      <TextField size="small" name="date" type="date"
+                        value={form.date ? form.date.split('T')[0] : ''} onChange={handleChange}
+                        sx={{ minWidth: 130 }} />
+                    ) : (
+                      <Typography sx={{ fontSize: 12.5, fontWeight: 600, color: G.text, fontFamily: MONO }}>
+                        {item.date ? new Date(item.date).toLocaleDateString('th-TH', { day:'2-digit', month:'2-digit', year:'2-digit' }) : '—'}
+                      </Typography>
+                    )}
+                  </TableCell>
+
+                  {/* Numeric cells */}
+                  {COLS.map((col, ci) => (
+                    <TableCell key={col.key} align="right">
+                      {col.key === '_buyEx' ? (
+                        <Typography sx={{ fontFamily: MONO, fontSize: 12, color: col.color || G.textSub }}>
+                          {fmt((item.buyIn || 0) + (item.exchange || 0))}
+                        </Typography>
+                      ) : editIndex === i ? (
+                        <TextField size="small" name={col.key} type="number"
+                          value={(form as Record<string,unknown>)[col.key] ?? ''}
+                          onChange={handleChange} sx={{ width: 90 }} />
+                      ) : (
+                        <Typography sx={{ fontFamily: MONO, fontSize: 12, fontWeight: 500, color: col.color || G.textSub }}>
+                          {fmt((item as unknown as Record<string,number>)[col.key])}
+                        </Typography>
+                      )}
+                    </TableCell>
+                  ))}
+
+                  <TableCell align="center">
+                    <Box sx={{ display: 'flex', gap: 0.5, justifyContent: 'center' }}>
+                      {editIndex === i ? (
+                        <Tooltip title="บันทึก" arrow>
+                          <IconButton size="small" onClick={saveEdit}
+                            sx={{ color: G.success, bgcolor: alpha(G.success, 0.1), borderRadius: '7px', '&:hover': { bgcolor: alpha(G.success, 0.18) } }}>
+                            <Save sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title="แก้ไข" arrow>
+                          <IconButton size="small" onClick={() => startEdit(i)}
+                            sx={{ color: G.accent, bgcolor: alpha(G.accent, 0.1), borderRadius: '7px', '&:hover': { bgcolor: alpha(G.accent, 0.18) } }}>
+                            <Edit sx={{ fontSize: 15 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      <Tooltip title="ลบ" arrow>
+                        <IconButton size="small" onClick={() => handleDelete(item.id)} disabled={deleting === item.id}
+                          sx={{ color: G.danger, bgcolor: alpha(G.danger, 0.1), borderRadius: '7px', '&:hover': { bgcolor: alpha(G.danger, 0.18) } }}>
+                          {deleting === item.id ? <CircularProgress size={14} sx={{ color: G.danger }} /> : <Delete sx={{ fontSize: 15 }} />}
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              ))}
+
+              {/* Totals row */}
+              {displayedData.length > 0 && (
+                <TableRow sx={{ bgcolor: alpha(G.accent, 0.04), '& td': { borderTop: `1px solid ${G.border}`, py: 1.5, px: 1.5 } }}>
+                  <TableCell>
+                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: G.textSub }}>รวม {data.length} รายการ</Typography>
+                  </TableCell>
+                  {COLS.map(col => (
+                    <TableCell key={col.key} align="right">
+                      <Typography sx={{ fontFamily: MONO, fontSize: 12, fontWeight: 700, color: col.color || G.textSub }}>
+                        {col.key === '_buyEx'
+                          ? fmt((totals.buyIn || 0) + (totals.exchange || 0))
+                          : fmt(totals[col.key])}
+                      </Typography>
+                    </TableCell>
+                  ))}
+                  <TableCell />
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </Box>
+
+        <Box sx={{ borderTop: `1px solid ${G.border}` }}>
+          <TablePagination
+            rowsPerPageOptions={[10, 25, 50, 100]}
+            component="div"
+            count={filteredData.length}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={(_, p) => setPage(p)}
+            onRowsPerPageChange={e => { setRowsPerPage(parseInt(e.target.value, 10)); setPage(0); }}
+            labelRowsPerPage="แถวต่อหน้า:"
+            labelDisplayedRows={({ from, to, count }) => `${from}–${to} จาก ${count}`}
+            sx={{ '& .MuiTablePagination-toolbar': { color: G.textMuted, fontSize: 12.5 } }}
+          />
+        </Box>
+      </Paper>
+
       <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
-        <Alert severity={snackbar.severity} onClose={handleClose}>
-          {snackbar.message}
-        </Alert>
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
+        <Alert severity={snackbar.severity} onClose={handleClose}>{snackbar.message}</Alert>
       </Snackbar>
-      <Dialog open={confirmOpen}>
-        <DialogTitle>ยืนยันการลบ</DialogTitle>
-        <DialogContent>คุณต้องการลบรายการนี้หรือไม่?</DialogContent>
-        <DialogActions>
-          <Button onClick={() => setConfirmOpen(false)}>ยกเลิก</Button>
-          <Button color="error" onClick={confirmDelete}>ลบ</Button>
+
+      <Dialog open={confirmOpen} PaperProps={{ sx: { borderRadius: 3, bgcolor: G.paper, border: `1px solid ${G.border}` } }}>
+        <DialogTitle sx={{ color: G.text, fontWeight: 600 }}>ยืนยันการลบ</DialogTitle>
+        <DialogContent><Typography sx={{ color: G.textSub }}>คุณต้องการลบรายการนี้หรือไม่?</Typography></DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setConfirmOpen(false)}
+            sx={{ color: G.textSub, border: `1px solid ${G.border}`, borderRadius: '8px' }}>ยกเลิก</Button>
+          <Button onClick={confirmDelete}
+            sx={{ bgcolor: G.danger, color: '#fff', borderRadius: '8px', '&:hover': { bgcolor: alpha(G.danger, 0.85) } }}>ลบ</Button>
         </DialogActions>
       </Dialog>
     </Box>

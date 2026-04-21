@@ -173,7 +173,7 @@ export default function OrnamentGoldList() {
             <Paper sx={paperSx} elevation={0}>
               <Box sx={{ p: 2.5 }}>
                 <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textMuted, textTransform: 'uppercase', letterSpacing: '.1em', mb: 1.25 }}>{c.label}</Typography>
-                <Typography sx={{ fontFamily: MONO, fontSize: 26, fontWeight: 600, color: c.color, letterSpacing: '-.015em', lineHeight: 1 }}>{c.value}</Typography>
+                <Typography sx={{ fontFamily: MONO, fontSize: { xs: 20, md: 26 }, fontWeight: 600, color: c.color, letterSpacing: '-.015em', lineHeight: 1 }}>{c.value}</Typography>
                 <Typography sx={{ fontSize: 11.5, color: G.textMuted, mt: 0.75 }}>{c.unit}</Typography>
               </Box>
             </Paper>
@@ -183,8 +183,8 @@ export default function OrnamentGoldList() {
 
       {/* Controls */}
       <Paper sx={{ ...paperSx, mb: 2 }} elevation={0}>
-        <Box sx={{ p: 2.5, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2 }}>
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Box sx={{ p: 2.5, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 2 }}>
+          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start', overflowX: 'auto' }}>
             <Box>
               <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 0.75, fontFamily: MONO }}>ช่วงเวลา</Typography>
               <Box sx={{ display: 'inline-flex', p: '3px', bgcolor: G.bg, border: `1px solid ${G.border}`, borderRadius: '10px' }}>
@@ -246,11 +246,26 @@ export default function OrnamentGoldList() {
       {/* Table */}
       <Paper sx={{ ...paperSx, mb: 2 }} elevation={0}>
         <Box sx={{ overflowX: 'auto' }}>
-          <Table sx={{ minWidth: 900 }}>
+          <Table sx={{ minWidth: { xs: 520, md: 800 } }}>
             <TableHead>
               <TableRow>
-                {['วันที่','ชื่อ','นามสกุล','เลขบัตร','ที่อยู่','เบอร์โทร','น้ำหนัก (กรัม)','จำนวนเงิน','หมายเหตุ','จัดการ'].map((h, i) => (
-                  <TableCell key={h} align={i >= 6 && i <= 7 ? 'right' : i === 9 ? 'center' : 'left'} sx={thSx}>{h}</TableCell>
+                {[
+                  { label: 'วันที่' },
+                  { label: 'ชื่อ' },
+                  { label: 'นามสกุล' },
+                  { label: 'เลขบัตร',      xs: true },
+                  { label: 'ที่อยู่',       xs: true },
+                  { label: 'เบอร์โทร' },
+                  { label: 'น้ำหนัก (กรัม)', right: true },
+                  { label: 'จำนวนเงิน',    right: true },
+                  { label: 'หมายเหตุ',     xs: true },
+                  { label: 'จัดการ',       center: true },
+                ].map(h => (
+                  <TableCell key={h.label}
+                    align={h.right ? 'right' : h.center ? 'center' : 'left'}
+                    sx={{ ...thSx, ...(h.xs ? { display: { xs: 'none', md: 'table-cell' } } : {}) }}>
+                    {h.label}
+                  </TableCell>
                 ))}
               </TableRow>
             </TableHead>
@@ -266,7 +281,8 @@ export default function OrnamentGoldList() {
                 </TableRow>
               ) : displayedData.map((item, i) => (
                 <TableRow key={item.id} sx={{
-                  '&:hover': { bgcolor: alpha(G.accent, 0.04) },
+                  bgcolor: i % 2 !== 0 ? alpha(G.accent, 0.03) : 'transparent',
+                  '&:hover': { bgcolor: `${alpha(G.accent, 0.08)} !important` },
                   '&:last-child td': { borderBottom: 0 },
                   '& td': { borderColor: G.border, px: 2, py: 1.25 },
                 }}>
@@ -283,8 +299,14 @@ export default function OrnamentGoldList() {
                   </TableCell>
                   {editIndex === i ? (
                     <>
-                      {['firstname','lastname','idcard','address','phone'].map(field => (
-                        <TableCell key={field}>
+                      {[
+                        { field: 'firstname' },
+                        { field: 'lastname' },
+                        { field: 'idcard',   xs: true },
+                        { field: 'address',  xs: true },
+                        { field: 'phone' },
+                      ].map(({ field, xs }) => (
+                        <TableCell key={field} sx={xs ? { display: { xs: 'none', md: 'table-cell' } } : {}}>
                           <TextField size="small" name={field}
                             value={(form as Record<string,unknown>)[field] as string || ''} onChange={handleChange} fullWidth />
                         </TableCell>
@@ -295,7 +317,7 @@ export default function OrnamentGoldList() {
                       <TableCell>
                         <TextField size="small" name="amount" type="number" value={form.amount || ''} onChange={handleChange} fullWidth />
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                         <TextField size="small" name="remark" value={form.remark || ''} onChange={handleChange} fullWidth />
                       </TableCell>
                     </>
@@ -303,8 +325,10 @@ export default function OrnamentGoldList() {
                     <>
                       <TableCell><Typography sx={{ fontSize: 13, color: G.text }}>{item.firstname}</Typography></TableCell>
                       <TableCell><Typography sx={{ fontSize: 13, color: G.text }}>{item.lastname}</Typography></TableCell>
-                      <TableCell><Typography sx={{ fontSize: 12, color: G.textSub, fontFamily: MONO }}>{item.idcard}</Typography></TableCell>
-                      <TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
+                        <Typography sx={{ fontSize: 12, color: G.textSub, fontFamily: MONO }}>{item.idcard}</Typography>
+                      </TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                         <Tooltip title={item.address} arrow>
                           <Typography sx={{ fontSize: 12, color: G.textSub, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                             {item.address}
@@ -320,7 +344,7 @@ export default function OrnamentGoldList() {
                           ฿{Number(item.amount).toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                         <Typography sx={{ fontSize: 12, color: G.textMuted, maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                           {item.remark || '—'}
                         </Typography>
@@ -356,9 +380,11 @@ export default function OrnamentGoldList() {
               ))}
               {displayedData.length > 0 && (
                 <TableRow sx={{ bgcolor: alpha(G.accent, 0.04), '& td': { borderTop: `1px solid ${G.border}`, py: 1.5, px: 2 } }}>
-                  <TableCell colSpan={6}>
+                  <TableCell colSpan={4}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: G.textSub }}>รวม {filteredData.length} รายการ</Typography>
                   </TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} />
+                  <TableCell />
                   <TableCell align="right">
                     <Typography sx={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: G.brass }}>{totals.totalWeight.toFixed(2)}</Typography>
                   </TableCell>
@@ -367,7 +393,7 @@ export default function OrnamentGoldList() {
                       ฿{totals.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                     </Typography>
                   </TableCell>
-                  <TableCell /><TableCell />
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} /><TableCell />
                 </TableRow>
               )}
             </TableBody>
