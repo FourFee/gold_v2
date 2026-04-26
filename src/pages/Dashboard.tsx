@@ -1,14 +1,15 @@
-import { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import {
   Box, Grid, Typography, Card, CardContent,
-  Skeleton, Chip, Stack, LinearProgress,
-  IconButton, ToggleButtonGroup, ToggleButton, alpha,
-  Snackbar, Alert
+  Skeleton,
+  IconButton, alpha,
+  Snackbar, Alert, Popover
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import dayjs, { Dayjs } from 'dayjs';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DateCalendar } from '@mui/x-date-pickers/DateCalendar';
 import 'dayjs/locale/th';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
@@ -19,6 +20,8 @@ import TrendingDownIcon  from '@mui/icons-material/TrendingDown';
 import ChevronLeftIcon   from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon  from '@mui/icons-material/ChevronRight';
 import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+import ArrowForwardIcon  from '@mui/icons-material/ArrowForward';
+import { useNavigate }   from 'react-router-dom';
 
 import { API_BASE, GOLD_BAHT_TO_GRAM_BAR, GOLD_BAHT_TO_GRAM_ORNAMENT } from "../config";
 import { useNotify } from "../hooks/useNotify";
@@ -33,7 +36,7 @@ dayjs.extend(customParseFormat);
 dayjs.extend(weekOfYear);
 dayjs.locale('th');
 
-type Period    = "day" | "week" | "month";
+type Period    = "day" | "week" | "month" | "all";
 type ChartView = "area" | "line" | "bar";
 
 interface GraphData {
@@ -76,12 +79,14 @@ export default function Dashboard() {
   const [selectedMonth, setSelectedMonth] = useState<number>(dayjs().month() + 1);
   const [selectedYear, setSelectedYear]   = useState<number>(dayjs().year());
   const [isLoading, setIsLoading]         = useState(true);
+  const [pickerAnchor, setPickerAnchor]   = useState<HTMLElement | null>(null);
   const [summary, setSummary]             = useState<SummaryData | null>(null);
   const [graphData, setGraphData]         = useState<GraphData[]>([]);
   const [barGoldStock, setBarGoldStock]   = useState<{ remaining_baht: number; remaining_grams: number } | null>(null);
   const [chartView, setChartView]         = useState<ChartView>("area");
 
   const periodLabel = useMemo(() => {
+    if (period === "all")  return "ทั้งหมด";
     if (period === "day") return `${selectedDate.format('D MMMM')} ${selectedDate.year() + 543}`;
     if (period === "week") {
       const sat = selectedDate.subtract(selectedDate.day(), 'day');
@@ -105,7 +110,9 @@ export default function Dashboard() {
       try {
         const sp = new URLSearchParams({ period });
         const gp = new URLSearchParams({ period });
-        if (period === "day") {
+        if (period === "all") {
+          gp.append('group_by', 'month');
+        } else if (period === "day") {
           const d = selectedDate.format('YYYY-MM-DD');
           sp.append('date_str', d); gp.append('date_str', d);
         } else if (period === "week") {
@@ -161,9 +168,10 @@ export default function Dashboard() {
     bar_sell_baht: (d.bar_sell||0) / GOLD_BAHT_TO_GRAM_BAR,
   })), [graphData]);
 
+  const navigate = useNavigate();
   const hour       = dayjs().hour();
   const greeting   = hour < 12 ? 'สวัสดีตอนเช้า' : hour < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
-  const periodText = period === 'month' ? 'เดือนนี้' : period === 'week' ? 'สัปดาห์นี้' : 'วันนี้';
+  const periodText = period === 'all' ? 'ทั้งหมด' : period === 'month' ? 'เดือนนี้' : period === 'week' ? 'สัปดาห์นี้' : 'วันนี้';
   const profitPos  = (calc?.profit  || 0) >= 0;
   const pawnPos    = (calc?.pawnProfit || 0) >= 0;
   const stockBaht  = barGoldStock ? barGoldStock.remaining_grams / GOLD_BAHT_TO_GRAM_BAR : 0;
@@ -182,12 +190,12 @@ export default function Dashboard() {
               ภาพรวมธุรกิจ
             </Typography>
             <Typography sx={{ color: G.textMuted, fontSize: 12.5, mt: 0.5 }}>
-              ช่วงข้อมูลสรุป · <strong style={{ color: G.textSub }}>{periodLabel}</strong> · กราฟ{period === 'week' ? '5 สัปดาห์' : period === 'month' ? '6 เดือน' : '1 วัน'}ย้อนหลัง
+              ช่วงข้อมูลสรุป · <strong style={{ color: G.textSub }}>{periodLabel}</strong>{period !== 'all' && ` · กราฟ${period === 'week' ? '5 สัปดาห์' : period === 'month' ? '6 เดือน' : '1 วัน'}ย้อนหลัง`}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
             <Box sx={{ display: 'inline-flex', p: '3px', bgcolor: G.surface, border: `1px solid ${G.border}`, borderRadius: '10px' }}>
-              {(['day', 'week', 'month'] as Period[]).map(p => (
+              {([['day','วัน'],['week','สัปดาห์'],['month','เดือน'],['all','ทั้งหมด']] as [Period,string][]).map(([p, label]) => (
                 <Box key={p} component="button" onClick={() => setPeriod(p)}
                   sx={{ border: period === p ? `1px solid ${G.border}` : '1px solid transparent',
                     borderRadius: '8px', px: 1.5, py: 0.75, cursor: 'pointer',
@@ -195,21 +203,45 @@ export default function Dashboard() {
                     color: period === p ? G.text : G.textMuted,
                     fontWeight: 500, fontSize: 13, fontFamily: 'inherit',
                     transition: 'all .15s' }}>
-                  {p === 'day' ? 'วัน' : p === 'week' ? 'สัปดาห์' : 'เดือน'}
+                  {label}
                 </Box>
               ))}
             </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: G.paper, border: `1px solid ${G.border}`, borderRadius: '10px', p: '4px' }}>
-              <IconButton size="small" onClick={() => navDate(-1)} sx={{ color: G.textSub, width: 28, height: 28, borderRadius: '7px', '&:hover': { bgcolor: G.bg } }}>
-                <ChevronLeftIcon fontSize="small" />
-              </IconButton>
-              <Typography sx={{ color: G.text, fontWeight: 600, px: 1, minWidth: 152, textAlign: 'center', fontSize: 13 }}>
-                {periodLabel}
-              </Typography>
-              <IconButton size="small" onClick={() => navDate(1)} sx={{ color: G.textSub, width: 28, height: 28, borderRadius: '7px', '&:hover': { bgcolor: G.bg } }}>
-                <ChevronRightIcon fontSize="small" />
-              </IconButton>
-            </Box>
+            {period !== 'all' && (
+              <Box sx={{ display: 'flex', alignItems: 'center', bgcolor: G.paper, border: `1px solid ${G.border}`, borderRadius: '10px', p: '4px' }}>
+                <IconButton size="small" onClick={() => navDate(-1)} sx={{ color: G.textSub, width: 28, height: 28, borderRadius: '7px', '&:hover': { bgcolor: G.bg } }}>
+                  <ChevronLeftIcon fontSize="small" />
+                </IconButton>
+                <Box component="button" onClick={(e: React.MouseEvent<HTMLElement>) => setPickerAnchor(e.currentTarget)}
+                  sx={{ color: G.text, fontWeight: 600, px: 1, minWidth: { xs: 100, sm: 152 }, textAlign: 'center', fontSize: { xs: 12, sm: 13 },
+                    border: 'none', bgcolor: 'transparent', cursor: 'pointer', fontFamily: 'inherit',
+                    borderRadius: '6px', py: '2px', '&:hover': { bgcolor: G.bg } }}>
+                  {periodLabel}
+                </Box>
+                <Popover open={Boolean(pickerAnchor)} anchorEl={pickerAnchor}
+                  onClose={() => setPickerAnchor(null)}
+                  anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+                  transformOrigin={{ vertical: 'top', horizontal: 'center' }}
+                  slotProps={{ paper: { sx: { mt: 0.5, borderRadius: 3, border: `1px solid ${G.border}`, boxShadow: '0 8px 32px rgba(0,0,0,.12)' } } }}>
+                  <DateCalendar
+                    views={period === 'month' ? ['year', 'month'] : ['year', 'month', 'day']}
+                    openTo={period === 'month' ? 'month' : 'day'}
+                    value={period === 'month'
+                      ? dayjs().year(selectedYear > 2500 ? selectedYear - 543 : selectedYear).month(selectedMonth - 1)
+                      : selectedDate}
+                    onChange={(v) => {
+                      if (!v) return;
+                      if (period === 'month') { setSelectedMonth(v.month() + 1); setSelectedYear(v.year()); setPickerAnchor(null); }
+                      else { setSelectedDate(v); setPickerAnchor(null); }
+                    }}
+                    sx={{ '& .MuiPickersDay-root.Mui-selected': { bgcolor: G.accent }, '& .MuiPickersDay-root:hover': { bgcolor: alpha(G.accent, 0.12) } }}
+                  />
+                </Popover>
+                <IconButton size="small" onClick={() => navDate(1)} sx={{ color: G.textSub, width: 28, height: 28, borderRadius: '7px', '&:hover': { bgcolor: G.bg } }}>
+                  <ChevronRightIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            )}
           </Box>
         </Box>
 
@@ -218,8 +250,11 @@ export default function Dashboard() {
           {/* Profit card */}
           <Grid item xs={12} md={7}>
             {isLoading ? <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3 }} /> : (
-              <Card sx={cardSx}>
-                <CardContent sx={{ p: { xs: 3, md: 3.5 } }}>
+              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden' }}>
+                <Box sx={{ position: 'absolute', right: -40, bottom: -40, width: 260, height: 260,
+                  background: `radial-gradient(closest-side, ${alpha(G.accent, 0.22)}, transparent 70%)`,
+                  filter: 'blur(2px)', pointerEvents: 'none' }} />
+                <CardContent sx={{ p: { xs: 3, md: 3.5 }, position: 'relative' }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 13, mb: 1 }}>
                     {greeting} · วัน{dayjs().format('dddd')}ที่ {dayjs().format('D')} {dayjs().format('MMMM')} {dayjs().year() + 543}
                   </Typography>
@@ -230,7 +265,7 @@ export default function Dashboard() {
                       ฿&thinsp;{fmt(calc?.profit || 0)}
                     </Box>
                   </Typography>
-                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', fontSize: 12.5, color: G.textMuted }}>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', fontSize: 12.5, color: G.textMuted, mb: 2 }}>
                     {[
                       { dot: true, label: `มาร์จิน ${calc?.margin.toFixed(1) || '0.0'}%` },
                       { dot: true, label: `ต้นทุน ฿${fmt(calc?.cost || 0)}` },
@@ -241,6 +276,29 @@ export default function Dashboard() {
                         <span>{x.label}</span>
                       </Box>
                     ))}
+                  </Box>
+
+                  {/* น้ำหนักรวม ซื้อเข้า/ขายออก (บาท) */}
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5,
+                    p: 1.5, borderRadius: '10px', border: `1px solid ${G.border}`, bgcolor: alpha(G.accent, 0.04) }}>
+                    {(() => {
+                      const buyBaht  = ((summary?.bar_buy  || 0) + (summary?.buyIn   || 0)) / GOLD_BAHT_TO_GRAM_BAR;
+                      const sellBaht = ((summary?.bar_sell || 0) + (summary?.sellOut || 0)) / GOLD_BAHT_TO_GRAM_BAR;
+                      return [
+                        { label: 'ซื้อเข้า', val: buyBaht,  color: G.success },
+                        { label: 'ขายออก',  val: sellBaht, color: G.danger  },
+                      ].map(x => (
+                        <Box key={x.label} sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                          <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: x.color, flexShrink: 0 }} />
+                          <Box>
+                            <Typography sx={{ fontSize: 11, color: G.textMuted, lineHeight: 1.2 }}>{x.label}</Typography>
+                            <Typography sx={{ fontFamily: MONO, fontSize: 16, fontWeight: 600, color: G.text, lineHeight: 1.2 }}>
+                              {fmtD(x.val)} <Box component="span" sx={{ fontSize: 11, color: G.textMuted, fontWeight: 500 }}>บาท</Box>
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ));
+                    })()}
                   </Box>
                 </CardContent>
               </Card>
@@ -300,8 +358,8 @@ export default function Dashboard() {
           )) : <>
             {/* กำไรสุทธิ */}
             <Grid item xs={12} md={4}>
-              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden' }}>
-                <CardContent sx={{ p: 2.75 }}>
+              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
                     <Box sx={{ px: 1, py: 0.25, borderRadius: '999px', fontSize: 11, fontWeight: 600,
                       bgcolor: profitPos ? G.successBg : G.dangerBg, color: profitPos ? G.success : G.danger }}>
@@ -326,8 +384,8 @@ export default function Dashboard() {
 
             {/* สต็อกทองแท่ง */}
             <Grid item xs={12} md={4}>
-              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden' }}>
-                <CardContent sx={{ p: 2.75 }}>
+              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
                     <Box sx={{ px: 1, py: 0.25, borderRadius: '999px', fontSize: 11, fontWeight: 600,
                       bgcolor: alpha(G.accent, 0.12), color: G.accent }}>
@@ -351,8 +409,8 @@ export default function Dashboard() {
 
             {/* กำไรจำนำ */}
             <Grid item xs={12} md={4}>
-              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden' }}>
-                <CardContent sx={{ p: 2.75 }}>
+              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
                     <Box sx={{ px: 1, py: 0.25, borderRadius: '999px', fontSize: 11, fontWeight: 600,
                       bgcolor: pawnPos ? G.successBg : G.dangerBg, color: pawnPos ? G.success : G.danger }}>
@@ -384,6 +442,39 @@ export default function Dashboard() {
 
         {/* ── Detail groups ── */}
         <DetailCards summary={summary} calc={calc} isLoading={isLoading} />
+
+        {/* ── Quick links ── */}
+        <Box sx={{ mt: 1 }}>
+          <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 1.5, fontFamily: MONO }}>
+            ดูรายการทั้งหมด
+          </Typography>
+          <Grid container spacing={1.5}>
+            {[
+              { label: 'รายการจำนำ',          sub: 'Pawn list',         path: '/pawn-list',              color: G.warning },
+              { label: 'รายการทองแท่ง',        sub: 'Bar gold list',     path: '/bar-list',               color: G.accent  },
+              { label: 'รายการทองรูปพรรณ',    sub: 'Ornament list',     path: '/ornament-list',          color: G.brass   },
+              { label: 'ธุรกรรมทองทั้งหมด',   sub: 'All transactions',  path: '/all-transactions-list',  color: G.success },
+            ].map(item => (
+              <Grid item xs={6} md={3} key={item.path}>
+                <Box onClick={() => navigate(item.path)} sx={{
+                  p: 2, borderRadius: '12px', cursor: 'pointer',
+                  border: `1px solid ${G.border}`, bgcolor: G.paper,
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  transition: 'all .15s',
+                  '&:hover': { borderColor: item.color, bgcolor: alpha(item.color, 0.04),
+                    '& .arrow': { transform: 'translateX(3px)' } },
+                }}>
+                  <Box>
+                    <Box sx={{ width: 6, height: 6, borderRadius: '2px', bgcolor: item.color, mb: 1 }} />
+                    <Typography sx={{ fontSize: 13, fontWeight: 600, color: G.text, lineHeight: 1.3 }}>{item.label}</Typography>
+                    <Typography sx={{ fontSize: 11, color: G.textMuted, fontFamily: MONO, mt: 0.25 }}>{item.sub}</Typography>
+                  </Box>
+                  <ArrowForwardIcon className="arrow" sx={{ fontSize: 16, color: G.textMuted, transition: 'transform .15s' }} />
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+        </Box>
 
       </Box>
       <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleClose}

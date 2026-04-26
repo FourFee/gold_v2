@@ -3,15 +3,23 @@ import { createTheme, ThemeProvider } from "@mui/material/styles";
 
 export const ColorModeContext = createContext({
   toggleColorMode: () => {},
-  mode: "light" as "light" | "dark"
+  mode: "dark" as "light" | "dark"
 });
 
 export default function ThemeContextProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<"light" | "dark">("light");
+  const [mode, setMode] = useState<"light" | "dark">(() => {
+    if (typeof window === "undefined") return "dark";
+    const saved = localStorage.getItem("themeMode");
+    return saved === "light" || saved === "dark" ? saved : "dark";
+  });
 
   const colorMode = useMemo(() => ({
     toggleColorMode: () => {
-      setMode((prevMode) => (prevMode === "light" ? "dark" : "light"));
+      setMode((prevMode) => {
+        const next = prevMode === "light" ? "dark" : "light";
+        try { localStorage.setItem("themeMode", next); } catch {}
+        return next;
+      });
     },
     mode
   }), [mode]);

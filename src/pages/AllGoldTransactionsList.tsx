@@ -13,6 +13,7 @@ import { Snackbar, Alert } from "@mui/material";
 import { API_BASE } from "../config";
 import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
+import { dateHaystack, buildSearchFilter } from "../utils/listFilter";
 import { AllGoldTransactionRecord } from "../types";
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
@@ -64,12 +65,19 @@ export default function AllGoldTransactionsList() {
     return !dayjs(item.date).isBefore(start);
   }), [data, period]);
 
-  const filteredData = useMemo(() => periodData.filter(item =>
-    (item.date ? new Date(item.date).toLocaleDateString("th-TH") : "").includes(search) ||
-    String(item.redeem || "").includes(search) ||
-    String(item.buyIn  || "").includes(search) ||
-    String(item.sellOut || "").includes(search)
-  ), [periodData, search]);
+  const filteredData = useMemo(() => {
+    const matches = buildSearchFilter(search);
+    return periodData.filter(item => matches([
+      dateHaystack(item.date),
+      String(item.redeem   || ''),
+      String(item.interest || ''),
+      String(item.pawn     || ''),
+      String(item.buyIn    || ''),
+      String(item.exchange || ''),
+      String(item.sellOut  || ''),
+      String(item.expenses || ''),
+    ].join(' ')));
+  }, [periodData, search]);
 
   const displayedData = filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 

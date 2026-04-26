@@ -30,27 +30,45 @@ export default function OrnamentGoldPage() {
   const { snackbar, notify, handleClose } = useNotify();
   const { print } = usePrint();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"buy" | "sell">("sell");
+  const [mode, setMode] = useState<"buy" | "sell">("buy");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
 
-  const handleSubmit = async () => {
+  const validate = () => {
     const w = parseFloat(form.weight);
     const a = parseFloat(form.amount);
-    if (!form.firstname || !form.idcard) { notify("กรุณากรอกชื่อและเลขบัตร", "error"); return; }
-    if (form.idcard && !validateThaiId(form.idcard.replace(/\D/g, ""))) { notify("เลขบัตรประชาชนไม่ถูกต้อง", "error"); return; }
-    if (isNaN(w) || w <= 0) { notify("น้ำหนักต้องมากกว่า 0", "error"); return; }
-    if (isNaN(a) || a <= 0) { notify("จำนวนเงินต้องมากกว่า 0", "error"); return; }
+    if (!form.firstname || !form.idcard) { notify("กรุณากรอกชื่อและเลขบัตร", "error"); return null; }
+    if (form.idcard && !validateThaiId(form.idcard.replace(/\D/g, ""))) { notify("เลขบัตรประชาชนไม่ถูกต้อง", "error"); return null; }
+    if (isNaN(w) || w <= 0) { notify("น้ำหนักต้องมากกว่า 0", "error"); return null; }
+    if (isNaN(a) || a <= 0) { notify("จำนวนเงินต้องมากกว่า 0", "error"); return null; }
+    return { w, a };
+  };
+
+  const saveToServer = async (w: number, a: number) => {
+    const res = await fetch(`${API_BASE}/ornament-gold/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, mode, weight: w, amount: a }),
+    });
+    if (!res.ok) throw new Error("บันทึกไม่สำเร็จ");
+  };
+
+  const handleSave = async () => {
+    const v = validate(); if (!v) return;
     try {
-      const res = await fetch(`${API_BASE}/ornament-gold/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, mode, weight: w, amount: a }),
-      });
-      if (!res.ok) throw new Error("บันทึกไม่สำเร็จ");
+      await saveToServer(v.w, v.a);
       notify("บันทึกเรียบร้อย", "success");
-      print({ type: "ornament", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: w, amount: a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
+      navigate("/ornament-list");
+    } catch (err) { notify((err as Error).message, "error"); }
+  };
+
+  const handleSaveAndPrint = async () => {
+    const v = validate(); if (!v) return;
+    try {
+      await saveToServer(v.w, v.a);
+      notify("บันทึกเรียบร้อย", "success");
+      print({ type: "ornament", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: v.w, amount: v.a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
       navigate("/ornament-list");
     } catch (err) { notify((err as Error).message, "error"); }
   };
@@ -152,7 +170,12 @@ export default function OrnamentGoldPage() {
                   '&:hover': { borderColor: G.accent, color: G.accent } }}>
                 พิมพ์ใบเสร็จ
               </Button>
-              <Button variant="contained" onClick={handleSubmit}
+              <Button variant="outlined" onClick={handleSave}
+                sx={{ borderRadius: '10px', borderColor: G.accent, color: G.accent, minHeight: 44, fontWeight: 600,
+                  '&:hover': { bgcolor: alpha(G.accent, 0.08) } }}>
+                บันทึก
+              </Button>
+              <Button variant="contained" onClick={handleSaveAndPrint}
                 sx={{ borderRadius: '10px', bgcolor: G.accent, minHeight: 44, fontWeight: 600,
                   '&:hover': { bgcolor: alpha(G.accent, 0.85) } }}>
                 บันทึก + พิมพ์

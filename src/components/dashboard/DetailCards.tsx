@@ -42,12 +42,19 @@ function MetricCell({ label, color, primary, primaryUnit, sub, subVal, sub2, sub
   G: ReturnType<typeof makeG>;
 }) {
   return (
-    <Box sx={{ p: 2.5, borderRight: `1px solid ${G.border}`, '&:last-child': { borderRight: 0 } }}>
+    <Box sx={{
+      p: { xs: 2, sm: 2.5 },
+      borderRight: { xs: 0, md: `1px solid ${G.border}` },
+      borderBottom: { xs: `1px solid ${G.border}`, md: 0 },
+      '&:last-child': { borderRight: 0, borderBottom: 0 },
+      height: '100%', minHeight: { xs: 120, md: 140 },
+      display: 'flex', flexDirection: 'column',
+    }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.25 }}>
         <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: color, flexShrink: 0 }} />
         <Typography sx={{ fontSize: 12, fontWeight: 600, color: G.textSub }}>{label}</Typography>
       </Box>
-      <Typography sx={{ fontFamily: MONO, fontSize: 20, fontWeight: 600, color: G.text, letterSpacing: '-.01em' }}>
+      <Typography sx={{ fontFamily: MONO, fontSize: { xs: 18, sm: 20 }, fontWeight: 600, color: G.text, letterSpacing: '-.01em' }}>
         {primary}
         {primaryUnit && (
           <Box component="span" sx={{ fontSize: 11, color: G.textMuted, ml: 0.5, fontWeight: 500, letterSpacing: '.05em', textTransform: 'uppercase' }}>
@@ -55,22 +62,20 @@ function MetricCell({ label, color, primary, primaryUnit, sub, subVal, sub2, sub
           </Box>
         )}
       </Typography>
-      {(sub || sub2) && (
-        <Box sx={{ mt: 0.75, color: G.textMuted, fontSize: 11.5 }}>
-          {sub && (
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
-              <span>{sub}</span>
-              {subVal && <strong style={{ color: G.textSub, fontFamily: MONO }}>{subVal}</strong>}
-            </Box>
-          )}
-          {sub2 && (
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mt: 0.25 }}>
-              <span>{sub2}</span>
-              {sub2Val && <strong style={{ color: G.textSub, fontFamily: MONO }}>{sub2Val}</strong>}
-            </Box>
-          )}
-        </Box>
-      )}
+      <Box sx={{ mt: 'auto', pt: 0.75, color: G.textMuted, fontSize: 11.5 }}>
+        {sub && (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1 }}>
+            <span>{sub}</span>
+            {subVal && <strong style={{ color: G.textSub, fontFamily: MONO }}>{subVal}</strong>}
+          </Box>
+        )}
+        {sub2 && (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mt: 0.25 }}>
+            <span>{sub2}</span>
+            {sub2Val && <strong style={{ color: G.textSub, fontFamily: MONO }}>{sub2Val}</strong>}
+          </Box>
+        )}
+      </Box>
     </Box>
   );
 }
@@ -114,75 +119,91 @@ export default function DetailCards({ summary, calc, isLoading }: Props) {
 
   return (
     <>
-      {/* ── ทองรูปพรรณ + ทองแท่ง ── */}
+      {/* ── ทองแท่ง + ทองรูปพรรณ ── */}
       <Paper sx={paperSx} elevation={0}>
+        <GroupHead G={G} title="ทองแท่ง" tag="สรุปธุรกรรม (บาทน้ำหนัก & มูลค่า)"
+          hint={`อัตราแลก 1 บาท = ${GOLD_BAHT_TO_GRAM_BAR} g`} />
+        <Grid container alignItems="stretch">
+          <Grid item xs={6} md={3} sx={{ display: 'flex' }}>
+            <Box sx={{ flex: 1 }}>
+              <MetricCell G={G} label="ทองแท่งซื้อเข้า" color={G.accent}
+                primary={fmtD(bar.buy)} primaryUnit="บาท"
+                sub="น้ำหนัก (กรัม)" subVal={`${fmtD(bar.buyGram)} g`}
+                sub2="มูลค่าเงิน" sub2Val={`฿${fmt(bar.buyAmt)}`} />
+            </Box>
+          </Grid>
+          <Grid item xs={6} md={3} sx={{ display: 'flex' }}>
+            <Box sx={{ flex: 1 }}>
+              <MetricCell G={G} label="ทองแท่งขายออก" color="#9c3a2a"
+                primary={fmtD(bar.sell)} primaryUnit="บาท"
+                sub="น้ำหนัก (กรัม)" subVal={`${fmtD(bar.sellGram)} g`}
+                sub2="มูลค่าเงิน" sub2Val={`฿${fmt(bar.sellAmt)}`} />
+            </Box>
+          </Grid>
+          <Grid item xs={6} md={3} sx={{ display: 'flex' }}>
+            <Box sx={{ flex: 1 }}>
+              <MetricCell G={G} label="กำไรทองแท่ง" color={bar.profit >= 0 ? G.success : G.danger}
+                primary={`${bar.profit >= 0 ? '+' : ''}฿${fmt(bar.profit)}`}
+                sub="มาร์จิน" subVal={bar.buyAmt > 0 ? `${((bar.profit / bar.buyAmt) * 100).toFixed(1)}%` : '-'} />
+            </Box>
+          </Grid>
+          <Grid item xs={6} md={3} sx={{ display: 'flex' }}>
+            <Box sx={{ flex: 1 }}>
+              <MetricCell G={G} label="ยอดรวมทั้งหมด" color={G.textMuted}
+                primary={fmtD(bar.totalGram)} primaryUnit="g"
+                sub="รูปพรรณ + แท่ง"
+                subVal={`${fmtD((orn.buyIn + orn.sellOut + bar.buyGram + bar.sellGram) / GOLD_BAHT_TO_GRAM_BAR)} บาท`} />
+            </Box>
+          </Grid>
+        </Grid>
+
         <GroupHead G={G} title="ทองรูปพรรณ" tag="สรุปธุรกรรม (กรัม & บาทน้ำหนัก)"
-          hint={`อัตราแลก 1 บาท = ${GOLD_BAHT_TO_GRAM_ORNAMENT} g`} />
-        <Grid container sx={{ '& > *': { borderBottom: `1px solid ${G.border}` } }}>
+          hint={`อัตราแลก 1 บาท = ${GOLD_BAHT_TO_GRAM_ORNAMENT} g`} borderTop />
+        <Grid container alignItems="stretch">
           {([
             { label: 'ทองซื้อเข้า',  color: G.success, gram: orn.buyIn   },
             { label: 'ทองขายออก',   color: G.danger,  gram: orn.sellOut  },
             { label: 'เปลี่ยนทอง', color: G.warning,  gram: orn.exch    },
             { label: 'ทองชุบ',      color: '#20c997',  gram: orn.plated  },
           ] as const).map(m => (
-            <Grid item xs={6} md={3} key={m.label}>
-              <MetricCell G={G} label={m.label} color={m.color}
-                primary={fmtD(m.gram)} primaryUnit="g"
-                sub="น้ำหนักบาท" subVal={`${fmtD(m.gram / GOLD_BAHT_TO_GRAM_ORNAMENT)} บาท`} />
+            <Grid item xs={6} md={3} key={m.label} sx={{ display: 'flex' }}>
+              <Box sx={{ flex: 1 }}>
+                <MetricCell G={G} label={m.label} color={m.color}
+                  primary={fmtD(m.gram)} primaryUnit="g"
+                  sub="น้ำหนักบาท" subVal={`${fmtD(m.gram / GOLD_BAHT_TO_GRAM_ORNAMENT)} บาท`} />
+              </Box>
             </Grid>
           ))}
-        </Grid>
-
-        <GroupHead G={G} title="ทองแท่ง" tag="สรุปธุรกรรม (บาทน้ำหนัก & มูลค่า)"
-          hint={`อัตราแลก 1 บาท = ${GOLD_BAHT_TO_GRAM_BAR} g`} borderTop />
-        <Grid container>
-          <Grid item xs={6} md={3}>
-            <MetricCell G={G} label="ทองแท่งซื้อเข้า" color={G.accent}
-              primary={fmtD(bar.buy)} primaryUnit="บาท"
-              sub="น้ำหนัก (กรัม)" subVal={`${fmtD(bar.buyGram)} g`}
-              sub2="มูลค่าเงิน" sub2Val={`฿${fmt(bar.buyAmt)}`} />
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <MetricCell G={G} label="ทองแท่งขายออก" color="#9c3a2a"
-              primary={fmtD(bar.sell)} primaryUnit="บาท"
-              sub="น้ำหนัก (กรัม)" subVal={`${fmtD(bar.sellGram)} g`}
-              sub2="มูลค่าเงิน" sub2Val={`฿${fmt(bar.sellAmt)}`} />
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <MetricCell G={G} label="กำไรทองแท่ง" color={bar.profit >= 0 ? G.success : G.danger}
-              primary={`${bar.profit >= 0 ? '+' : ''}฿${fmt(bar.profit)}`}
-              sub="มาร์จิน" subVal={bar.buyAmt > 0 ? `${((bar.profit / bar.buyAmt) * 100).toFixed(1)}%` : '-'} />
-          </Grid>
-          <Grid item xs={6} md={3}>
-            <MetricCell G={G} label="ยอดรวมทั้งหมด" color={G.textMuted}
-              primary={fmtD(bar.totalGram)} primaryUnit="g"
-              sub="รูปพรรณ + แท่ง"
-              subVal={`${fmtD((orn.buyIn + orn.sellOut + bar.buyGram + bar.sellGram) / GOLD_BAHT_TO_GRAM_BAR)} บาท`} />
-          </Grid>
         </Grid>
       </Paper>
 
       {/* ── จำนำ ── */}
       <Paper sx={paperSx} elevation={0}>
         <GroupHead G={G} title="สรุปธุรกรรมจำนำ" tag="จำนำ" />
-        <Grid container>
+        <Grid container alignItems="stretch">
           {([
-            { label: 'เช็ค',              color: '#748ffc', val: summary?.pawn     || 0 },
+            { label: 'ไถ่',               color: '#748ffc', val: summary?.pawn     || 0 },
             { label: 'ดอก',               color: '#63e6be', val: summary?.interest || 0 },
             { label: 'จำนำ',              color: '#ffa94d', val: summary?.redeem   || 0 },
-            { label: 'ยอดรวม (เช็ค−จำนำ)', color: '#ff6b6b', val: (summary?.pawn||0)-(summary?.redeem||0) },
+            { label: 'ยอดรวม (ไถ่−จำนำ)', color: '#ff6b6b', val: (summary?.pawn||0)-(summary?.redeem||0) },
             { label: 'ค่าใช้จ่าย',       color: '#fcc419', val: summary?.expenses || 0 },
           ] as const).map(m => (
-            <Grid item xs={6} md key={m.label}>
-              <Box sx={{ p: 2, borderRight: `1px solid ${G.border}`, '&:last-child': { borderRight: 0 } }}>
+            <Grid item xs={6} sm={4} md key={m.label} sx={{ display: 'flex' }}>
+              <Box sx={{
+                p: 2, flex: 1,
+                borderRight: { xs: 0, md: `1px solid ${G.border}` },
+                borderBottom: { xs: `1px solid ${G.border}`, md: 0 },
+                '&:last-child': { borderRight: 0, borderBottom: 0 },
+                display: 'flex', flexDirection: 'column', minHeight: 120,
+              }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.25 }}>
                   <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: m.color }} />
                   <Typography sx={{ fontSize: 12, fontWeight: 600, color: G.textSub }}>{m.label}</Typography>
                 </Box>
-                <Typography sx={{ fontFamily: MONO, fontSize: 19, fontWeight: 600, color: G.text }}>
+                <Typography sx={{ fontFamily: MONO, fontSize: { xs: 17, sm: 19 }, fontWeight: 600, color: G.text }}>
                   ฿{fmt(m.val)}
                 </Typography>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 0.75, color: G.textMuted, fontSize: 11.5 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 'auto', pt: 0.75, color: G.textMuted, fontSize: 11.5 }}>
                   <span>สุทธิ</span>
                   <strong style={{ color: m.val > 0 ? G.success : m.val < 0 ? G.danger : G.textMuted, fontFamily: MONO }}>
                     {m.val > 0 ? 'กำไร' : m.val < 0 ? 'ขาดทุน' : '-'}

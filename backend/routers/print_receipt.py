@@ -130,6 +130,17 @@ def build_escpos(data: PrintData) -> bytes:
     return buf
 
 
+@router.get("/check")
+def check_printer():
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(2)
+            s.connect((PRINTER_IP, PRINTER_PORT))
+        return {"online": True}
+    except Exception:
+        return {"online": False}
+
+
 @router.post("/receipt")
 def print_receipt(data: PrintData):
     try:

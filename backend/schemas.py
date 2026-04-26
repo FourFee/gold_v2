@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Literal
 
 class PawnCreate(BaseModel):
-    date: datetime  
+    date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     firstname: str
     lastname: str
     idcard: str
@@ -15,7 +15,7 @@ class PawnCreate(BaseModel):
     remark: str
 
 class BarGoldCreate(BaseModel):
-    date: datetime  
+    date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     firstname: str
     lastname: str
     idcard: str
@@ -28,7 +28,7 @@ class BarGoldCreate(BaseModel):
     mode: Literal["buy", "sell"]
 
 class OrnamentGoldCreate(BaseModel):
-    date: datetime  
+    date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     firstname: str
     lastname: str
     idcard: str

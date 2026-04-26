@@ -125,19 +125,33 @@ function buildReceiptHtml(data: ReceiptData): string {
 </html>`;
 }
 
+function browserPrint(data: ReceiptData) {
+  const html = buildReceiptHtml(data);
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const win = window.open(url, "_blank", "width=400,height=600");
+  if (!win) { alert("กรุณาอนุญาต popup เพื่อพิมพ์ใบเสร็จ"); URL.revokeObjectURL(url); return; }
+  win.focus();
+  setTimeout(() => { win.print(); win.close(); URL.revokeObjectURL(url); }, 600);
+}
+
 export function usePrint() {
   const print = useCallback(async (data: ReceiptData) => {
     try {
-      const res = await fetch(`${API_BASE}/print/receipt`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (!json.ok) throw new Error(json.error || "พิมพ์ไม่สำเร็จ");
-    } catch (err) {
-      alert("❌ พิมพ์ไม่สำเร็จ: " + (err as Error).message);
+      const checkRes = await fetch(`${API_BASE}/print/check`, { signal: AbortSignal.timeout(3000) });
+      const { online } = await checkRes.json();
+      if (online) {
+        await fetch(`${API_BASE}/print/receipt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data),
+        });
+        return;
+      }
+    } catch {
+      // printer not reachable — fall through to browser print
     }
+    browserPrint(data);
   }, []);
 
   return { print };

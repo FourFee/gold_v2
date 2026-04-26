@@ -39,3 +39,9 @@ sudo nano /etc/nginx/nginx.conf
 curl http://127.0.0.1:8000/openapi.json | jq '.paths'
 
 sqlite3 /root/gold/backend/gold_data.db
+
+git add .
+git commit -m "แก้อะไร เช่น fix: แก้ bug คำนวณน้ำหนักทอง"
+git push
+
+ssh root@178.128.80.147 "echo '=== Frontend (index.html) ===' && grep -o 'main\.[a-z0-9]*\.js' /var/www/html/index.html && echo '=== Frontend files ===' && ls -la /var/www/html/static/js/ && echo '=== Backend (uvicorn) ===' && ps aux | grep uvicorn | grep -v grep"

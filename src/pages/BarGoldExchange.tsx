@@ -1,121 +1,116 @@
-// path: src/pages/BarGoldExchange.tsx
-
-import React, { useState } from 'react';
-import { Box, Button, TextField, Typography, Container, Alert, CircularProgress } from '@mui/material';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Box, TextField, Typography, Paper, Button, Stack, alpha } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
+import { Snackbar, Alert } from '@mui/material';
 import { API_BASE, GOLD_BAHT_TO_GRAM_BAR } from "../config";
-// 📌 เปลี่ยน URL API ตาม Backend ของคุณ
-const API = `${API_BASE}/bar-gold-exchange`;
+import { useNotify } from "../hooks/useNotify";
+import { makeG } from "../utils/dashboardTokens";
+
+const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
 export default function BarGoldExchange() {
-    const [customerName, setCustomerName] = useState('');
-    const [weightBaht, setWeightBaht] = useState('');
-    const [loading, setLoading] = useState(false);
-    const [message, setMessage] = useState('');
+  const theme = useTheme();
+  const G = makeG(theme);
+  const navigate = useNavigate();
+  const { snackbar, notify, handleClose } = useNotify();
 
-    const calculateWeightGram = (baht: string) => {
-    const bahtValue = parseFloat(baht);
-    return !isNaN(bahtValue) ? (bahtValue * GOLD_BAHT_TO_GRAM_BAR).toFixed(2) : '0.00';
-    };
+  const [customerName, setCustomerName] = useState('');
+  const [weightBaht, setWeightBaht]     = useState('');
+  const [loading, setLoading]           = useState(false);
 
-    const handleSubmit = async (event: React.FormEvent) => {
-        event.preventDefault();
-        setMessage('');
-        setLoading(true);
+  const weightGram = () => {
+    const v = parseFloat(weightBaht);
+    return !isNaN(v) ? (v * GOLD_BAHT_TO_GRAM_BAR).toFixed(2) : '0.00';
+  };
 
-        const baht = parseFloat(weightBaht);
-        // ตรวจสอบน้ำหนักทองแท่งที่นำมาแลก ต้องเป็น 5 บาทขึ้นไป
-        if (isNaN(baht) || baht < 5) { 
-            setMessage('Error: กรุณากรอกน้ำหนักตั้งแต่ 5 บาทขึ้นไปเท่านั้น');
-            setLoading(false);
-            return;
-        }
+  const handleSubmit = async () => {
+    const baht = parseFloat(weightBaht);
+    if (!customerName.trim()) { notify("กรุณากรอกชื่อลูกค้า", "error"); return; }
+    if (isNaN(baht) || baht < 5) { notify("น้ำหนักต้องไม่น้อยกว่า 5 บาท", "error"); return; }
 
-        const exchangeData = {
-            customerName,
-            weightBaht: baht,
-            weightGram: parseFloat(calculateWeightGram(weightBaht)),
-        };
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/bar-gold-exchange`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerName, weightBaht: baht, weightGram: parseFloat(weightGram()) }),
+      });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.detail || "บันทึกไม่สำเร็จ"); }
+      notify("บันทึกการแลกเปลี่ยนสำเร็จ", "success");
+      setTimeout(() => navigate("/"), 800);
+    } catch (err) { notify((err as Error).message, "error"); }
+    finally { setLoading(false); }
+  };
 
-        try {
-            const response = await fetch(`${API_BASE}/bar-gold-exchange`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(exchangeData),
-            });
+  const inputSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '10px',
+      '& fieldset': { borderColor: G.border },
+      '&:hover fieldset': { borderColor: G.accent },
+      '&.Mui-focused fieldset': { borderColor: G.accent },
+    },
+    '& .MuiInputLabel-root.Mui-focused': { color: G.accent },
+  };
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to record exchange transaction');
-            }
+  return (
+    <Box sx={{ bgcolor: G.bg, minHeight: '100vh', p: { xs: 1.5, sm: 3, md: 4 } }}>
+      <Paper elevation={0} sx={{
+        p: { xs: 2.5, sm: 3.5 }, borderRadius: 3, maxWidth: 560, mx: 'auto',
+        bgcolor: G.paper, border: `1px solid ${G.border}`,
+        boxShadow: '0 1px 0 rgba(27,23,19,.04),0 8px 24px -14px rgba(27,23,19,.14)',
+      }}>
+        <Box sx={{ mb: 3, pb: 2.5, borderBottom: `1px solid ${G.border}` }}>
+          <Typography sx={{
+            fontSize: 18, fontWeight: 600, color: G.text, letterSpacing: '-.01em',
+            display: 'flex', alignItems: 'center', gap: 1,
+            '&::before': { content: '""', width: 4, height: 20, bgcolor: G.accent, borderRadius: 1, display: 'inline-block' },
+          }}>
+            แลกเปลี่ยนทองแท่ง
+          </Typography>
+          <Typography sx={{ color: G.textMuted, fontSize: 12.5, mt: 0.5, fontFamily: MONO }}>
+            {new Date().toLocaleString("th-TH", { dateStyle: 'full', timeStyle: 'short' })}
+          </Typography>
+          <Typography sx={{ color: G.textMuted, fontSize: 12, mt: 0.5 }}>
+            ลดสต็อกทองแท่ง — ขั้นต่ำ 5 บาท
+          </Typography>
+        </Box>
 
-            setMessage('บันทึกการแลกเปลี่ยนและสั่งพิมพ์ใบเสร็จสำเร็จ!');
-            // รีเซ็ตฟอร์ม
-            setCustomerName('');
-            setWeightBaht('');
+        <Stack spacing={2.5}>
+          <TextField fullWidth label="ชื่อลูกค้า" value={customerName}
+            onChange={e => setCustomerName(e.target.value)} sx={inputSx} />
 
-        } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error("Error:", errorMessage);
-            setMessage(`Error: เกิดข้อผิดพลาดในการบันทึกข้อมูล: ${errorMessage}`);
-        } finally {
-            setLoading(false);
-        }
-    };
+          <TextField fullWidth label="น้ำหนักทองแท่งที่นำมาแลก (บาท)" type="number"
+            inputProps={{ step: "0.01", min: "5" }}
+            value={weightBaht} onChange={e => setWeightBaht(e.target.value)}
+            helperText="ขั้นต่ำ 5 บาท" sx={inputSx} />
 
-    const isButtonDisabled = loading || parseFloat(weightBaht || '0') < 5 || customerName.trim() === '';
+          <Box sx={{ p: 2, borderRadius: 2, bgcolor: alpha(G.accent, 0.06), border: `1px solid ${alpha(G.accent, 0.2)}` }}>
+            <Typography sx={{ fontSize: 13, color: G.textSub }}>น้ำหนักเทียบกรัม</Typography>
+            <Typography sx={{ fontSize: 22, fontWeight: 700, color: G.accent, fontFamily: MONO }}>
+              {weightGram()} <Typography component="span" sx={{ fontSize: 13, color: G.textMuted }}>กรัม</Typography>
+            </Typography>
+          </Box>
 
-    return (
-        <Container maxWidth="sm">
-            <Box component="form" onSubmit={handleSubmit} sx={{ mt: 4, p: 3, border: '1px solid #0056b3', borderRadius: '8px', bgcolor: '#f0f8ff' }}>
-                <Typography variant="h5" gutterBottom color="primary">
-                    นำทองแท่งแลกทองรูปพรรณ
-                </Typography>
-                <Typography variant="subtitle1" gutterBottom color="text.secondary" sx={{ mb: 3 }}>
-                    (ธุรกรรมนี้จะลด Stock ทองแท่ง 5 บาทขึ้นไป)
-                </Typography>
-                
-                {message && (
-                    <Alert severity={message.includes('Error') ? 'error' : 'success'} sx={{ mb: 2 }}>
-                        {message}
-                    </Alert>
-                )}
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="flex-end">
+            <Button variant="outlined" onClick={() => navigate("/")}
+              sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,
+                '&:hover': { borderColor: G.accent, color: G.accent } }}>
+              ย้อนกลับ
+            </Button>
+            <Button variant="contained" onClick={handleSubmit} disabled={loading}
+              sx={{ borderRadius: '10px', bgcolor: G.accent, minHeight: 44, fontWeight: 600,
+                '&:hover': { bgcolor: alpha(G.accent, 0.85) } }}>
+              {loading ? "กำลังบันทึก..." : "ยืนยันการแลกเปลี่ยน"}
+            </Button>
+          </Stack>
+        </Stack>
+      </Paper>
 
-                <TextField
-                    fullWidth
-                    label="ชื่อลูกค้า"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    margin="normal"
-                    required
-                />
-
-                <TextField
-                    fullWidth
-                    label="น้ำหนักทองแท่งที่นำมาแลก (บาท)"
-                    type="number"
-                    inputProps={{ step: "0.01", min: "5" }} // กำหนด min เป็น 5
-                    value={weightBaht}
-                    onChange={(e) => setWeightBaht(e.target.value)}
-                    margin="normal"
-                    required
-                    helperText="กรุณากรอกน้ำหนักตั้งแต่ 5 บาทขึ้นไปเท่านั้น"
-                />
-                
-                <Typography variant="body1" sx={{ mt: 2, fontWeight: 'bold' }}>
-                    น้ำหนัก (กรัม): {calculateWeightGram(weightBaht)} กรัม
-                </Typography>
-
-                <Button 
-                    type="submit" 
-                    variant="contained" 
-                    color="primary" 
-                    sx={{ mt: 3 }} 
-                    disabled={isButtonDisabled}
-                    startIcon={loading && <CircularProgress size={20} color="inherit" />}
-                >
-                    {loading ? 'กำลังบันทึก...' : 'ยืนยันการแลกเปลี่ยนและพิมพ์ใบเสร็จ'}
-                </Button>
-            </Box>
-        </Container>
-    );
+      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+        <Alert severity={snackbar.severity} onClose={handleClose}>{snackbar.message}</Alert>
+      </Snackbar>
+    </Box>
+  );
 }

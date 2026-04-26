@@ -49,6 +49,48 @@ def get_summary(
     # 🔴 ปัญหา: ถ้าไม่มีพารามิเตอร์ที่ตรงกับเงื่อนไขใดๆ จะเกิด error
     # 🔴 ต้องเพิ่มเงื่อนไข default
     
+    # ถ้า period=all ไม่กรองวันที่ ดึงข้อมูลทั้งหมด
+    if period == "all":
+        all_transactions_period = db.query(AllGoldTransaction).all()
+        bar_transactions_period = db.query(BarGold).all()
+
+        sell_out_total        = sum(t.sellOut or 0.0 for t in all_transactions_period)
+        exchange_total        = sum(t.exchange or 0.0 for t in all_transactions_period)
+        buy_in_total          = sum(t.buyIn or 0.0 for t in all_transactions_period)
+        expenses_total        = sum(t.expenses or 0.0 for t in all_transactions_period)
+        diamond_buy_in_total  = sum(t.diamondBuyIn or 0.0 for t in all_transactions_period)
+        diamond_sell_out_total= sum(t.diamondSellOut or 0.0 for t in all_transactions_period)
+        plated_gold_total     = sum(t.platedGold or 0.0 for t in all_transactions_period)
+        redeem_total          = sum(t.redeem or 0.0 for t in all_transactions_period)
+        interest_total        = sum(t.interest or 0.0 for t in all_transactions_period)
+        pawn_total            = sum(t.pawn or 0.0 for t in all_transactions_period)
+
+        bar_buy_transactions  = [t for t in bar_transactions_period if t.mode == "sell"]
+        bar_sell_transactions = [t for t in bar_transactions_period if t.mode == "buy"]
+        bar_buy_total_weight  = sum(t.weightBaht or 0.0 for t in bar_buy_transactions) * 15.24
+        bar_sell_total_weight = sum(t.weightBaht or 0.0 for t in bar_sell_transactions) * 15.24
+        bar_buy_amount        = sum(t.amount or 0.0 for t in bar_buy_transactions)
+        bar_sell_amount       = sum(t.amount or 0.0 for t in bar_sell_transactions)
+        total_bar_buy_baht    = sum(t.weightBaht or 0.0 for t in bar_buy_transactions)
+        total_bar_sell_baht   = sum(t.weightBaht or 0.0 for t in bar_sell_transactions)
+
+        return {
+            "sellOut": sell_out_total, "exchange": exchange_total, "buyIn": buy_in_total,
+            "bar_buy": bar_buy_total_weight, "bar_sell": bar_sell_total_weight,
+            "plated_gold": plated_gold_total,
+            "total_gold_flow": (buy_in_total + bar_buy_total_weight) - (sell_out_total + bar_sell_total_weight),
+            "redeem": redeem_total, "interest": interest_total, "pawn": pawn_total,
+            "total_pawn_flow": redeem_total - pawn_total, "expenses": expenses_total,
+            "gold_out": exchange_total + sell_out_total,
+            "diamondBuyIn": diamond_buy_in_total, "diamondSellOut": diamond_sell_out_total,
+            "bar_buy_amount": bar_buy_amount, "bar_sell_amount": bar_sell_amount,
+            "avg_bar_buy_price_per_baht":  bar_buy_amount / total_bar_buy_baht if total_bar_buy_baht > 0 else 0.0,
+            "avg_bar_sell_price_per_baht": bar_sell_amount / total_bar_sell_baht if total_bar_sell_baht > 0 else 0.0,
+            "avg_bar_buy_price_per_gram":  bar_buy_amount / bar_buy_total_weight if bar_buy_total_weight > 0 else 0.0,
+            "avg_bar_sell_price_per_gram": bar_sell_amount / bar_sell_total_weight if bar_sell_total_weight > 0 else 0.0,
+            "bar_profit": bar_sell_amount - bar_buy_amount,
+        }
+
     # จัดลำดับความสำคัญของพารามิเตอร์
     # 1. ถ้ามี start_date และ end_date จาก frontend (priority สูงสุด)
     if start_date and end_date:
@@ -193,8 +235,41 @@ def get_all_transactions_graph_data(
     end_date: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
+    # period=all — ดึงทุกข้อมูล group by month ไม่กรองวันที่
+    if period == "all":
+        transactions  = db.query(AllGoldTransaction).order_by(AllGoldTransaction.date).all()
+        bar_transactions = db.query(BarGold).order_by(BarGold.date).all()
+        agg = defaultdict(lambda: {"redeem":0.0,"interest":0.0,"pawn":0.0,"buyIn":0.0,
+            "exchange":0.0,"sellOut":0.0,"expenses":0.0,"diamondBuyIn":0.0,
+            "diamondSellOut":0.0,"platedGold":0.0,"bar_buy":0.0,"bar_sell":0.0,
+            "gold_out":0.0,"total_gold_flow":0.0,"total_pawn_flow":0.0})
+        for t in transactions:
+            k = t.date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            agg[k]["redeem"]       += t.redeem or 0.0
+            agg[k]["interest"]     += t.interest or 0.0
+            agg[k]["pawn"]         += t.pawn or 0.0
+            agg[k]["buyIn"]        += t.buyIn or 0.0
+            agg[k]["exchange"]     += t.exchange or 0.0
+            agg[k]["sellOut"]      += t.sellOut or 0.0
+            agg[k]["expenses"]     += t.expenses or 0.0
+            agg[k]["diamondBuyIn"] += t.diamondBuyIn or 0.0
+            agg[k]["diamondSellOut"]+= t.diamondSellOut or 0.0
+            agg[k]["platedGold"]   += t.platedGold or 0.0
+            agg[k]["gold_out"]     += (t.sellOut or 0.0) + (t.exchange or 0.0)
+        for b in bar_transactions:
+            k = b.date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if b.mode == "sell": agg[k]["bar_buy"]  += (b.weightBaht or 0.0) * 15.24
+            elif b.mode == "buy": agg[k]["bar_sell"] += (b.weightBaht or 0.0) * 15.24
+        for k in agg:
+            agg[k]["total_pawn_flow"] = agg[k]["redeem"] - agg[k]["pawn"]
+            agg[k]["total_gold_flow"] = (agg[k]["buyIn"] + agg[k]["bar_buy"]) - (agg[k]["sellOut"] + agg[k]["bar_sell"])
+        result = []
+        for k in sorted(agg.keys()):
+            result.append({"label": k.strftime("%b %Y"), "date": k.isoformat(), **agg[k]})
+        return result
+
     # ✅ แก้ไข: จัดการกับพารามิเตอร์ต่างๆ
-    
+
     # 1. ถ้ามี start_date และ end_date จาก frontend
     if start_date and end_date:
         start_date_for_query = datetime.strptime(start_date, '%Y-%m-%d')

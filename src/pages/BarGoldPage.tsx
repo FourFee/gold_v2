@@ -5,6 +5,7 @@ import { useTheme } from "@mui/material/styles";
 import { API_BASE, GOLD_BAHT_TO_GRAM_BAR } from "../config";
 import { Snackbar, Alert } from "@mui/material";
 import { useNotify } from "../hooks/useNotify";
+import { usePersistedForm } from "../hooks/usePersistedForm";
 import { usePrint } from "../components/ReceiptPrint";
 import PrintIcon from "@mui/icons-material/Print";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -20,17 +21,19 @@ const MODES = [
   { value: 'sell', label: 'ซื้อเข้า', sub: 'ลูกค้าขายให้ร้าน', Icon: TrendingDownIcon },
 ] as const;
 
+const BAR_INITIAL = {
+  firstname: "", lastname: "", idcard: "", address: "", phone: "",
+  weightBaht: "", weightGram: "", amount: "", remark: "",
+};
+
 export default function BarGoldPage() {
   const theme = useTheme();
   const G = makeG(theme);
-  const [form, setForm] = useState({
-    firstname: "", lastname: "", idcard: "", address: "", phone: "",
-    weightBaht: "", weightGram: "", amount: "", remark: "",
-  });
+  const [form, setForm, clearForm] = usePersistedForm("bar", BAR_INITIAL);
   const { snackbar, notify, handleClose } = useNotify();
   const { print } = usePrint();
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"buy" | "sell">("sell");
+  const [mode, setMode] = useState<"buy" | "sell">("buy");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -41,22 +44,42 @@ export default function BarGoldPage() {
     }));
   };
 
-  const handleSubmit = async () => {
+  const validate = () => {
     const wb = parseFloat(form.weightBaht);
     const a  = parseFloat(form.amount);
-    if (!form.firstname || !form.idcard) { notify("กรุณากรอกชื่อและเลขบัตร", "error"); return; }
-    if (form.idcard && !validateThaiId(form.idcard.replace(/\D/g, ""))) { notify("เลขบัตรประชาชนไม่ถูกต้อง", "error"); return; }
-    if (isNaN(wb) || wb <= 0) { notify("น้ำหนักต้องมากกว่า 0", "error"); return; }
-    if (isNaN(a)  || a  <= 0) { notify("จำนวนเงินต้องมากกว่า 0", "error"); return; }
+    if (!form.firstname || !form.idcard) { notify("กรุณากรอกชื่อและเลขบัตร", "error"); return null; }
+    if (form.idcard && !validateThaiId(form.idcard.replace(/\D/g, ""))) { notify("เลขบัตรประชาชนไม่ถูกต้อง", "error"); return null; }
+    if (isNaN(wb) || wb <= 0) { notify("น้ำหนักต้องมากกว่า 0", "error"); return null; }
+    if (isNaN(a)  || a  <= 0) { notify("จำนวนเงินต้องมากกว่า 0", "error"); return null; }
+    return { wb, a };
+  };
+
+  const saveToServer = async (wb: number, a: number) => {
+    const res = await fetch(`${API_BASE}/bar-gold/create`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, mode, weightBaht: wb, weightGram: parseFloat(form.weightGram), amount: a }),
+    });
+    if (!res.ok) throw new Error("บันทึกไม่สำเร็จ");
+  };
+
+  const handleSave = async () => {
+    const v = validate(); if (!v) return;
     try {
-      const res = await fetch(`${API_BASE}/bar-gold/create`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, mode, weightBaht: wb, weightGram: parseFloat(form.weightGram), amount: a }),
-      });
-      if (!res.ok) throw new Error("บันทึกไม่สำเร็จ");
+      await saveToServer(v.wb, v.a);
       notify("บันทึกเรียบร้อย", "success");
-      print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightGram) || 0, amount: a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
+      clearForm();
+      navigate("/bar-list");
+    } catch (err) { notify((err as Error).message, "error"); }
+  };
+
+  const handleSaveAndPrint = async () => {
+    const v = validate(); if (!v) return;
+    try {
+      await saveToServer(v.wb, v.a);
+      notify("บันทึกเรียบร้อย", "success");
+      print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightGram) || 0, amount: v.a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
+      clearForm();
       navigate("/bar-list");
     } catch (err) { notify((err as Error).message, "error"); }
   };
@@ -163,7 +186,12 @@ export default function BarGoldPage() {
                   '&:hover': { borderColor: G.accent, color: G.accent } }}>
                 พิมพ์ใบเสร็จ
               </Button>
-              <Button variant="contained" onClick={handleSubmit}
+              <Button variant="outlined" onClick={handleSave}
+                sx={{ borderRadius: '10px', borderColor: G.accent, color: G.accent, minHeight: 44, fontWeight: 600,
+                  '&:hover': { bgcolor: alpha(G.accent, 0.08) } }}>
+                บันทึก
+              </Button>
+              <Button variant="contained" onClick={handleSaveAndPrint}
                 sx={{ borderRadius: '10px', bgcolor: G.accent, minHeight: 44, fontWeight: 600,
                   '&:hover': { bgcolor: alpha(G.accent, 0.85) } }}>
                 บันทึก + พิมพ์

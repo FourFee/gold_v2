@@ -18,6 +18,7 @@ import { Snackbar, Alert } from "@mui/material";
 import { API_BASE } from "../config";
 import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
+import { dateHaystack, buildSearchFilter } from "../utils/listFilter";
 import { BarGoldRecord } from "../types";
 
 dayjs.extend(utc);
@@ -81,15 +82,30 @@ export default function BarGoldList() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const filteredData = useMemo(() => data.filter(item =>
-    item.mode === mode && (
-      new Date(item.date).toLocaleDateString("th-TH").includes(search) ||
-      item.firstname.toLowerCase().includes(search.toLowerCase()) ||
-      item.lastname.toLowerCase().includes(search.toLowerCase()) ||
-      item.idcard.includes(search) ||
-      item.phone.includes(search)
-    )
-  ), [data, mode, search]);
+  // BarGoldList.tsx (บรรทัด 87-97)
+  const filteredData = useMemo(() => {
+    const matches = buildSearchFilter(search);
+    
+    return data.filter(item => {
+      if (item.mode !== mode) return false;
+
+      // ✅ แก้ไขตรงนี้: แปลง item.date ให้เป็น Local Time ก่อนส่งเข้า dateHaystack
+      // เพื่อให้ตัวหนังสือที่ใช้ค้นหา ตรงกับตัวหนังสือที่ตาเห็นบนตาราง
+      const localDate = dayjs.utc(item.date).local().format(); 
+
+      const hay = [
+        dateHaystack(localDate), // ค้นหาจากวันที่ที่แปลงเป็น local แล้ว
+        item.firstname,
+        item.lastname,
+        item.idcard,
+        item.phone,
+        item.address,
+        item.remark
+      ].join(' | ').toLowerCase();
+
+      return matches(hay);
+    });
+  }, [data, mode, search]);
 
   const displayedData = filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 

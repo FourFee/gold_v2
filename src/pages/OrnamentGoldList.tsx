@@ -13,6 +13,7 @@ import { Snackbar, Alert } from "@mui/material";
 import { API_BASE } from "../config";
 import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
+import { dateHaystack, buildSearchFilter } from "../utils/listFilter";
 import { OrnamentGoldRecord } from "../types";
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
@@ -69,15 +70,19 @@ export default function OrnamentGoldList() {
     return !dayjs(item.date).isBefore(start);
   }), [data, period]);
 
-  const filteredData = useMemo(() => periodData.filter(item =>
-    item.mode === mode && (
-      (item.date ? new Date(item.date).toLocaleDateString("th-TH") : '').includes(search) ||
-      item.firstname.toLowerCase().includes(search.toLowerCase()) ||
-      item.lastname.toLowerCase().includes(search.toLowerCase()) ||
-      item.idcard.includes(search) ||
-      item.phone.includes(search)
-    )
-  ), [periodData, mode, search]);
+  const filteredData = useMemo(() => {
+    const matches = buildSearchFilter(search);
+    return periodData.filter(item => item.mode === mode && matches([
+      dateHaystack(item.date),
+      item.firstname,
+      item.lastname,
+      `${item.firstname} ${item.lastname}`,
+      item.idcard,
+      item.phone,
+      item.address,
+      item.remark,
+    ].filter(Boolean).join(' ')));
+  }, [periodData, mode, search]);
 
   const displayedData = filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
