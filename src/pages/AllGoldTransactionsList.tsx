@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import dayjs from "dayjs";
 import {
   Box, Paper, Typography, Table, TableHead, TableRow, TableCell, TableBody,
-  TextField, IconButton, TablePagination, CircularProgress,
+  TextField, IconButton, TablePagination, CircularProgress, Skeleton,
   InputAdornment, Tooltip, Button, Grid, alpha,
 } from "@mui/material";
 import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
@@ -46,14 +46,17 @@ export default function AllGoldTransactionsList() {
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [search, setSearch]         = useState("");
   const [period, setPeriod]         = useState("all");
+  const [loading, setLoading]       = useState(true);
 
   const API = `${API_BASE}/all-gold-transactions`;
 
   const fetchData = useCallback(() => {
+    setLoading(true);
     fetch(`${API}/list?sort_order=desc`)
       .then(r => r.json())
       .then(json => { setData(Array.isArray(json) ? json : []); setPage(0); })
-      .catch(() => notify("โหลดข้อมูลไม่สำเร็จ", "error"));
+      .catch(() => notify("โหลดข้อมูลไม่สำเร็จ", "error"))
+      .finally(() => setLoading(false));
   }, [API]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -174,12 +177,13 @@ export default function AllGoldTransactionsList() {
       {/* Summary stat cards */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         {[
-          { label: 'รายได้รวม (ไถ่+ดอก)',   value: `฿${fmt(totals.redeem + totals.interest)}`,    color: G.success },
-          { label: 'จำนำรวม',               value: `฿${fmt(totals.pawn)}`,                         color: G.danger  },
-          { label: 'ทองซื้อ+เปลี่ยน',       value: `${fmt(totals.buyIn + totals.exchange)} g`,     color: G.accent  },
-          { label: 'ทองขายออก',             value: `${fmt(totals.sellOut)} g`,                     color: '#9c3a2a' },
+          { label: 'ไถ่จำนำ',         value: `฿${fmt(totals.redeem)}`,                       color: G.success },
+          { label: 'ดอกเบี้ย',         value: `฿${fmt(totals.interest)}`,                     color: G.success },
+          { label: 'จำนำรวม',          value: `฿${fmt(totals.pawn)}`,                         color: G.danger  },
+          { label: 'ทองซื้อ+เปลี่ยน', value: `${fmt(totals.buyIn + totals.exchange)} g`,     color: G.accent  },
+          { label: 'ทองขายออก',        value: `${fmt(totals.sellOut)} g`,                     color: '#9c3a2a' },
         ].map(c => (
-          <Grid item xs={6} md={3} key={c.label}>
+          <Grid item xs={6} md key={c.label}>
             <Paper sx={paperSx} elevation={0}>
               <Box sx={{ p: 2.25 }}>
                 <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: G.textMuted, textTransform: 'uppercase', letterSpacing: '.1em', mb: 1 }}>{c.label}</Typography>
@@ -243,7 +247,15 @@ export default function AllGoldTransactionsList() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {displayedData.length === 0 ? (
+              {loading ? (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={`sk-${i}`}>
+                    {Array.from({ length: 13 }).map((_, j) => (
+                      <TableCell key={j}><Skeleton variant="text" /></TableCell>
+                    ))}
+                  </TableRow>
+                ))
+              ) : displayedData.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={13} align="center" sx={{ py: 8 }}>
                     <Typography sx={{ fontSize: 14, color: G.textMuted }}>ไม่มีข้อมูลธุรกรรม</Typography>

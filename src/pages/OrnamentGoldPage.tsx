@@ -1,10 +1,12 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Box, TextField, Typography, Paper, Button, Stack, Grid, alpha } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
+import { useState } from "react";
 import { API_BASE } from "../config";
 import { Snackbar, Alert } from "@mui/material";
 import { useNotify } from "../hooks/useNotify";
+import { usePersistedForm } from "../hooks/usePersistedForm";
 import { usePrint } from "../components/ReceiptPrint";
 import PrintIcon from "@mui/icons-material/Print";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -20,13 +22,15 @@ const MODES = [
   { value: 'sell', label: 'ซื้อเข้า', sub: 'ลูกค้าขายให้ร้าน', Icon: TrendingDownIcon },
 ] as const;
 
+const ORN_INITIAL = {
+  firstname: "", lastname: "", idcard: "", address: "", phone: "",
+  weight: "", amount: "", remark: "",
+};
+
 export default function OrnamentGoldPage() {
   const theme = useTheme();
   const G = makeG(theme);
-  const [form, setForm] = useState({
-    firstname: "", lastname: "", idcard: "", address: "", phone: "",
-    weight: "", amount: "", remark: "",
-  });
+  const [form, setForm, clearForm] = usePersistedForm("ornament", ORN_INITIAL);
   const { snackbar, notify, handleClose } = useNotify();
   const { print } = usePrint();
   const navigate = useNavigate();
@@ -59,6 +63,7 @@ export default function OrnamentGoldPage() {
     try {
       await saveToServer(v.w, v.a);
       notify("บันทึกเรียบร้อย", "success");
+      clearForm();
       navigate("/ornament-list");
     } catch (err) { notify((err as Error).message, "error"); }
   };
@@ -69,6 +74,7 @@ export default function OrnamentGoldPage() {
       await saveToServer(v.w, v.a);
       notify("บันทึกเรียบร้อย", "success");
       print({ type: "ornament", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: v.w, amount: v.a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
+      clearForm();
       navigate("/ornament-list");
     } catch (err) { notify((err as Error).message, "error"); }
   };
@@ -83,7 +89,7 @@ export default function OrnamentGoldPage() {
     } catch { notify("ดึงข้อมูลบัตรล้มเหลว", "error"); }
   };
 
-  const handleClear = () => setForm({ firstname: "", lastname: "", idcard: "", address: "", phone: "", weight: "", amount: "", remark: "" });
+  const handleClear = () => clearForm();
 
   const inputSx = {
     '& .MuiOutlinedInput-root': {
@@ -159,11 +165,6 @@ export default function OrnamentGoldPage() {
           </Grid>
           <Grid item xs={12}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="flex-end">
-              <Button variant="outlined" onClick={() => navigate("/")}
-                sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,
-                  '&:hover': { borderColor: G.accent, color: G.accent } }}>
-                ย้อนกลับ
-              </Button>
               <Button startIcon={<PrintIcon />} variant="outlined"
                 onClick={() => print({ type: "ornament", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weight) || 0, amount: parseFloat(form.amount) || 0, goldType: mode === "buy" ? "ขายออก" : "ซื้อเข้า", remark: form.remark })}
                 sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,

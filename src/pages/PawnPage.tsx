@@ -129,11 +129,6 @@ export default function PawnPage() {
           </Grid>
           <Grid item xs={12}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="flex-end">
-              <Button variant="outlined" onClick={() => navigate("/")}
-                sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,
-                  '&:hover': { borderColor: G.accent, color: G.accent } }}>
-                ย้อนกลับ
-              </Button>
               <Button startIcon={<PrintIcon />} variant="outlined"
                 onClick={() => print({ type: "pawn", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weight) || 0, amount: parseFloat(form.amount) || 0, remark: form.remark })}
                 sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,

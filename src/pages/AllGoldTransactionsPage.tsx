@@ -3,26 +3,28 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Box, TextField, Typography, Paper, Button, Stack, Grid, alpha } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Snackbar, Alert } from "@mui/material";
+import dayjs from "dayjs";
 import { API_BASE } from "../config";
 import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
+import { usePersistedForm } from "../hooks/usePersistedForm";
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
 const FIELDS: { name: string; label: string; unit: string }[] = [
-  { name: "redeem",       label: "ไถ่จำนำ",       unit: "บาท" },
-  { name: "interest",     label: "ดอกเบี้ย",       unit: "บาท" },
-  { name: "pawn",         label: "จำนำ",           unit: "บาท" },
-  { name: "sellOut",      label: "ขายออก",         unit: "กรัม" },
-  { name: "buyIn",        label: "ซื้อเข้า",       unit: "กรัม" },
-  { name: "exchange",     label: "เปลี่ยน",        unit: "กรัม" },
-  { name: "expenses",     label: "ค่าใช้จ่าย",    unit: "บาท" },
-  { name: "diamondBuyIn", label: "ซื้อเข้าเพชร",  unit: "บาท" },
-  { name: "diamondSellOut",label:"ขายออกเพชร",    unit: "บาท" },
-  { name: "platedGold",   label: "ทองชุบ",         unit: "กรัม" },
+  { name: "redeem",        label: "ไถ่จำนำ",      unit: "บาท"  },
+  { name: "interest",      label: "ดอกเบี้ย",      unit: "บาท"  },
+  { name: "pawn",          label: "จำนำ",          unit: "บาท"  },
+  { name: "expenses",      label: "ค่าใช้จ่าย",   unit: "บาท"  },
+  { name: "buyIn",         label: "ซื้อเข้า",      unit: "กรัม" },
+  { name: "exchange",      label: "เปลี่ยน",       unit: "กรัม" },
+  { name: "sellOut",       label: "ขายออก",        unit: "กรัม" },
+  { name: "diamondBuyIn",  label: "ซื้อเข้าเพชร", unit: "บาท"  },
+  { name: "diamondSellOut",label: "ขายออกเพชร",   unit: "บาท"  },
+  { name: "platedGold",    label: "ทองชุบ",        unit: "กรัม" },
 ];
 
-const EMPTY = {
+const TRANS_INITIAL = {
   date: "", redeem: "", interest: "", pawn: "", buyIn: "",
   exchange: "", sellOut: "", expenses: "0", diamondBuyIn: "0",
   diamondSellOut: "0", platedGold: "0",
@@ -35,7 +37,7 @@ export default function AllGoldTransactionsPage() {
   const { id } = useParams();
   const { snackbar, notify, handleClose } = useNotify();
 
-  const [form, setForm] = useState(EMPTY);
+  const [form, setForm, clearForm] = usePersistedForm("all-transactions", TRANS_INITIAL);
   const [editId, setEditId] = useState<number | null>(null);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ export default function AllGoldTransactionsPage() {
     fetch(`${API_BASE}/all-gold-transactions/${id}`)
       .then(r => r.json())
       .then(data => setForm({
-        date: data.date?.split('T')[0] ?? "",
+        date: data.date ? dayjs(data.date).format('YYYY-MM-DD') : "",
         redeem:        String(data.redeem        ?? ""),
         interest:      String(data.interest      ?? ""),
         pawn:          String(data.pawn          ?? ""),
@@ -64,7 +66,8 @@ export default function AllGoldTransactionsPage() {
 
   const handleSubmit = async () => {
     const payload = {
-      date:           form.date,
+      // กัน timezone bug — ส่ง local-midnight ISO
+      date:           form.date ? dayjs(form.date).toISOString() : "",
       redeem:         parseFloat(form.redeem        || "0"),
       interest:       parseFloat(form.interest      || "0"),
       pawn:           parseFloat(form.pawn          || "0"),
@@ -86,6 +89,7 @@ export default function AllGoldTransactionsPage() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.detail || "บันทึกไม่สำเร็จ"); }
+      clearForm();
       notify("บันทึกข้อมูลสำเร็จ", "success");
       setTimeout(() => navigate("/all-transactions-list"), 800);
     } catch (err) { notify((err as Error).message, "error"); }
@@ -149,11 +153,6 @@ export default function AllGoldTransactionsPage() {
 
           <Grid item xs={12}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="flex-end">
-              <Button variant="outlined" onClick={() => navigate("/all-transactions-list")}
-                sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,
-                  '&:hover': { borderColor: G.accent, color: G.accent } }}>
-                ย้อนกลับ
-              </Button>
               <Button variant="contained" onClick={handleSubmit}
                 sx={{ borderRadius: '10px', bgcolor: G.accent, minHeight: 44, fontWeight: 600,
                   '&:hover': { bgcolor: alpha(G.accent, 0.85) } }}>

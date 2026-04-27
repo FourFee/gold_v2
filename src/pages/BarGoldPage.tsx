@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Box, TextField, Typography, Paper, Button, Stack, Grid, alpha } from "@mui/material";
+import dayjs from "dayjs";
+import { Box, TextField, Typography, Paper, Button, Stack, Grid, alpha, Tooltip, IconButton } from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import { useTheme } from "@mui/material/styles";
 import { API_BASE, GOLD_BAHT_TO_GRAM_BAR } from "../config";
 import { Snackbar, Alert } from "@mui/material";
@@ -13,6 +15,7 @@ import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import { validateThaiId } from "../utils/validateThaiId";
 import CustomerForm from "../components/CustomerForm";
 import { makeG } from "../utils/dashboardTokens";
+import { useGoldPrice } from "../hooks/useGoldPrice";
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
@@ -22,6 +25,7 @@ const MODES = [
 ] as const;
 
 const BAR_INITIAL = {
+  date: dayjs().format('YYYY-MM-DD'),
   firstname: "", lastname: "", idcard: "", address: "", phone: "",
   weightBaht: "", weightGram: "", amount: "", remark: "",
 };
@@ -34,6 +38,16 @@ export default function BarGoldPage() {
   const { print } = usePrint();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"buy" | "sell">("buy");
+  const { price, loading: priceLoading, error: priceError, refetch, barBuy, barSell } = useGoldPrice();
+
+  // auto-fill amount เมื่อ weight หรือ mode เปลี่ยน
+  useEffect(() => {
+    if (!price || !form.weightBaht) return;
+    const wb = parseFloat(form.weightBaht);
+    if (isNaN(wb) || wb <= 0) return;
+    const pricePerBaht = mode === "buy" ? barSell(price) : barBuy(price);
+    setForm(prev => ({ ...prev, amount: (wb * pricePerBaht).toFixed(2) }));
+  }, [form.weightBaht, mode, price]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -58,7 +72,7 @@ export default function BarGoldPage() {
     const res = await fetch(`${API_BASE}/bar-gold/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, mode, weightBaht: wb, weightGram: parseFloat(form.weightGram), amount: a }),
+      body: JSON.stringify({ ...form, mode, weightBaht: wb, weightGram: parseFloat(form.weightGram), amount: a, date: dayjs(form.date).toISOString() }),
     });
     if (!res.ok) throw new Error("บันทึกไม่สำเร็จ");
   };
@@ -94,7 +108,7 @@ export default function BarGoldPage() {
     } catch { notify("ดึงข้อมูลบัตรล้มเหลว", "error"); }
   };
 
-  const handleClear = () => setForm({ firstname: "", lastname: "", idcard: "", address: "", phone: "", weightBaht: "", weightGram: "", amount: "", remark: "" });
+  const handleClear = () => clearForm();
 
   const inputSx = {
     '& .MuiOutlinedInput-root': {
@@ -127,35 +141,115 @@ export default function BarGoldPage() {
           </Typography>
         </Box>
 
-        {/* Mode selector */}
-        <Box sx={{ mb: 3 }}>
-          <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 1, fontFamily: MONO }}>
-            ประเภทธุรกรรม
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
-            {MODES.map(m => (
-              <Box key={m.value} component="button" onClick={() => setMode(m.value)}
-                sx={{
-                  flex: { xs: '1 1 calc(50% - 6px)', sm: 'none' },
-                  minWidth: 140, border: `2px solid ${mode === m.value ? (m.value === 'buy' ? G.success : G.danger) : G.border}`,
-                  borderRadius: '12px', p: '10px 16px', cursor: 'pointer',
-                  bgcolor: mode === m.value ? (m.value === 'buy' ? alpha(G.success, 0.08) : alpha(G.danger, 0.08)) : G.bg,
-                  color:   mode === m.value ? (m.value === 'buy' ? G.success : G.danger) : G.textMuted,
-                  fontFamily: 'inherit', transition: 'all .15s',
-                  display: 'flex', alignItems: 'center', gap: 1,
-                }}>
-                <m.Icon sx={{ fontSize: 18 }} />
-                <Box sx={{ textAlign: 'left' }}>
-                  <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'inherit', lineHeight: 1.2 }}>{m.label}</Typography>
-                  <Typography sx={{ fontSize: 11, color: G.textMuted, lineHeight: 1.2 }}>{m.sub}</Typography>
-                </Box>
+        {/* Live gold price banner */}
+        <Box sx={{ mb: 2.5, p: 1.5, borderRadius: '10px', border: `1px solid ${alpha(G.accent, 0.25)}`,
+          bgcolor: alpha(G.accent, 0.04), display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: priceError ? G.danger : G.success,
+              animation: priceLoading ? undefined : 'pulse 2s infinite',
+              '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: .4 } } }} />
+            <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textMuted, textTransform: 'uppercase', letterSpacing: '.1em', fontFamily: MONO }}>
+              {priceError ? 'ไม่สามารถดึงราคาได้' : priceLoading ? 'กำลังโหลดราคา...' : `ราคาทอง · ${price?.update_time ?? ''}`}
+            </Typography>
+          </Box>
+          {price && (
+            <Box sx={{ display: 'flex', gap: 2.5, flex: 1, flexWrap: 'wrap' }}>
+              <Box>
+                <Typography sx={{ fontSize: 10, color: G.textMuted }}>แท่ง · รับซื้อ</Typography>
+                <Typography sx={{ fontFamily: MONO, fontWeight: 700, fontSize: 15, color: G.success }}>
+                  ฿{price.price.gold_bar.buy}
+                </Typography>
               </Box>
-            ))}
+              <Box>
+                <Typography sx={{ fontSize: 10, color: G.textMuted }}>แท่ง · ขายออก</Typography>
+                <Typography sx={{ fontFamily: MONO, fontWeight: 700, fontSize: 15, color: G.danger }}>
+                  ฿{price.price.gold_bar.sell}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+          <Tooltip title="รีเฟรชราคา">
+            <IconButton size="small" onClick={refetch} disabled={priceLoading}
+              sx={{ color: G.textMuted, '&:hover': { color: G.accent } }}>
+              <RefreshIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        {/* Mode selector + Date row */}
+        <Box sx={{ mb: 3, display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <Box sx={{ flex: '1 1 260px' }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 1, fontFamily: MONO }}>
+              ประเภทธุรกรรม
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+              {MODES.map(m => (
+                <Box key={m.value} component="button" onClick={() => setMode(m.value)}
+                  sx={{
+                    flex: { xs: '1 1 calc(50% - 6px)', sm: 'none' },
+                    minWidth: 140, border: `2px solid ${mode === m.value ? (m.value === 'buy' ? G.success : G.danger) : G.border}`,
+                    borderRadius: '12px', p: '10px 16px', cursor: 'pointer',
+                    bgcolor: mode === m.value ? (m.value === 'buy' ? alpha(G.success, 0.08) : alpha(G.danger, 0.08)) : G.bg,
+                    color:   mode === m.value ? (m.value === 'buy' ? G.success : G.danger) : G.textMuted,
+                    fontFamily: 'inherit', transition: 'all .15s',
+                    display: 'flex', alignItems: 'center', gap: 1,
+                  }}>
+                  <m.Icon sx={{ fontSize: 18 }} />
+                  <Box sx={{ textAlign: 'left' }}>
+                    <Typography sx={{ fontSize: 14, fontWeight: 600, color: 'inherit', lineHeight: 1.2 }}>{m.label}</Typography>
+                    <Typography sx={{ fontSize: 11, color: G.textMuted, lineHeight: 1.2 }}>{m.sub}</Typography>
+                  </Box>
+                </Box>
+              ))}
+            </Box>
+          </Box>
+          <Box sx={{ flex: '0 0 auto', minWidth: 190 }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 1, fontFamily: MONO }}>
+              วันที่ทำรายการ
+            </Typography>
+            <TextField fullWidth name="date" type="date"
+              value={form.date} onChange={handleChange}
+              InputLabelProps={{ shrink: true }} sx={inputSx} />
           </Box>
         </Box>
 
         <Grid container spacing={2.5}>
-          <CustomerForm values={form} onChange={handleChange} onReadCard={handleReadCard} onClear={handleClear} />
+          {/* ── ข้อมูลลูกค้า ── */}
+          <Grid item xs={12}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', fontFamily: MONO, flexShrink: 0 }}>
+                ข้อมูลลูกค้า
+              </Typography>
+              <Box sx={{ flex: 1, height: '1px', bgcolor: G.border }} />
+            </Box>
+          </Grid>
+          <CustomerForm values={form} onChange={handleChange} onReadCard={handleReadCard} onClear={handleClear} inputSx={inputSx}
+            actionButtons={
+              <Grid item xs={12}>
+                <Stack direction="row" spacing={1.5}>
+                  <Button variant="outlined" onClick={handleReadCard}
+                    sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,
+                      '&:hover': { borderColor: G.accent, color: G.accent } }}>
+                    📥 อ่านบัตรประชาชน
+                  </Button>
+                  <Button variant="outlined" onClick={handleClear}
+                    sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,
+                      '&:hover': { borderColor: G.danger, color: G.danger } }}>
+                    🧹 เคลียร์ฟอร์ม
+                  </Button>
+                </Stack>
+              </Grid>
+            }
+          />
+          {/* ── รายละเอียดทอง ── */}
+          <Grid item xs={12}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mt: 0.5 }}>
+              <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', fontFamily: MONO, flexShrink: 0 }}>
+                รายละเอียดทอง
+              </Typography>
+              <Box sx={{ flex: 1, height: '1px', bgcolor: G.border }} />
+            </Box>
+          </Grid>
           <Grid item xs={12} sm={6}>
             <TextField fullWidth label="น้ำหนักทอง (บาทน้ำหนัก)" name="weightBaht" value={form.weightBaht}
               onChange={handleChange} type="number" inputProps={{ min: 0 }} sx={inputSx} />
@@ -175,11 +269,6 @@ export default function BarGoldPage() {
           </Grid>
           <Grid item xs={12}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="flex-end">
-              <Button variant="outlined" onClick={() => navigate("/")}
-                sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,
-                  '&:hover': { borderColor: G.accent, color: G.accent } }}>
-                ย้อนกลับ
-              </Button>
               <Button startIcon={<PrintIcon />} variant="outlined"
                 onClick={() => print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightGram) || 0, amount: parseFloat(form.amount) || 0, goldType: mode === "buy" ? "ขายออก" : "ซื้อเข้า", remark: form.remark })}
                 sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,

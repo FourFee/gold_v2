@@ -15,9 +15,11 @@ interface Props {
   onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onReadCard: () => void;
   onClear: () => void;
+  inputSx?: object;
+  actionButtons?: React.ReactNode;
 }
 
-export default function CustomerForm({ values, onChange, onReadCard, onClear }: Props) {
+export default function CustomerForm({ values, onChange, onReadCard, onClear, inputSx, actionButtons }: Props) {
   const idcardError = useMemo(() => {
     const clean = values.idcard.replace(/\D/g, "");
     if (clean.length === 13 && !validateThaiId(clean)) return "เลขบัตรประชาชนไม่ถูกต้อง";
@@ -26,34 +28,36 @@ export default function CustomerForm({ values, onChange, onReadCard, onClear }: 
 
   return (
     <>
-      <Grid item xs={12}>
-        <Stack direction="row" spacing={2} justifyContent="center">
-          <Button variant="outlined" color="secondary" onClick={onReadCard}>
-            📥 อ่านบัตรประชาชน
-          </Button>
-          <Button variant="outlined" color="warning" onClick={onClear}>
-            🧹 เคลียร์ฟอร์ม
-          </Button>
-        </Stack>
+      {actionButtons ?? (
+        <Grid item xs={12}>
+          <Stack direction="row" spacing={2} justifyContent="center">
+            <Button variant="outlined" color="secondary" onClick={onReadCard}>
+              📥 อ่านบัตรประชาชน
+            </Button>
+            <Button variant="outlined" color="warning" onClick={onClear}>
+              🧹 เคลียร์ฟอร์ม
+            </Button>
+          </Stack>
+        </Grid>
+      )}
+      <Grid item xs={12} md={6}>
+        <TextField fullWidth label="ชื่อ" name="firstname" value={values.firstname} onChange={onChange} sx={inputSx} />
       </Grid>
       <Grid item xs={12} md={6}>
-        <TextField fullWidth label="ชื่อ" name="firstname" value={values.firstname} onChange={onChange} />
-      </Grid>
-      <Grid item xs={12} md={6}>
-        <TextField fullWidth label="นามสกุล" name="lastname" value={values.lastname} onChange={onChange} />
+        <TextField fullWidth label="นามสกุล" name="lastname" value={values.lastname} onChange={onChange} sx={inputSx} />
       </Grid>
       <Grid item xs={12} md={6}>
         <TextField
           fullWidth label="เลขบัตรประชาชน" name="idcard" value={values.idcard} onChange={onChange}
           error={!!idcardError} helperText={idcardError || " "}
-          inputProps={{ maxLength: 13 }}
+          inputProps={{ maxLength: 13 }} sx={inputSx}
         />
       </Grid>
       <Grid item xs={12} md={6}>
-        <TextField fullWidth label="เบอร์โทรศัพท์" name="phone" value={values.phone} onChange={onChange} />
+        <TextField fullWidth label="เบอร์โทรศัพท์" name="phone" value={values.phone} onChange={onChange} sx={inputSx} />
       </Grid>
       <Grid item xs={12}>
-        <TextField fullWidth label="ที่อยู่" name="address" value={values.address} onChange={onChange} />
+        <TextField fullWidth label="ที่อยู่" name="address" value={values.address} onChange={onChange} sx={inputSx} />
       </Grid>
     </>
   );

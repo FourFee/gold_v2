@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { usePersistedForm } from "../hooks/usePersistedForm";
 import { Box, TextField, Typography, Paper, Button, Stack, alpha } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Snackbar, Alert } from '@mui/material';
@@ -9,15 +10,17 @@ import { makeG } from "../utils/dashboardTokens";
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
+const EXCHANGE_INITIAL = { customerName: '', weightBaht: '' };
+
 export default function BarGoldExchange() {
   const theme = useTheme();
   const G = makeG(theme);
   const navigate = useNavigate();
   const { snackbar, notify, handleClose } = useNotify();
 
-  const [customerName, setCustomerName] = useState('');
-  const [weightBaht, setWeightBaht]     = useState('');
-  const [loading, setLoading]           = useState(false);
+  const [form, setForm, clearForm] = usePersistedForm("bar-exchange", EXCHANGE_INITIAL);
+  const { customerName, weightBaht } = form;
+  const [loading, setLoading] = useState(false);
 
   const weightGram = () => {
     const v = parseFloat(weightBaht);
@@ -37,6 +40,7 @@ export default function BarGoldExchange() {
         body: JSON.stringify({ customerName, weightBaht: baht, weightGram: parseFloat(weightGram()) }),
       });
       if (!res.ok) { const e = await res.json(); throw new Error(e.detail || "บันทึกไม่สำเร็จ"); }
+      clearForm();
       notify("บันทึกการแลกเปลี่ยนสำเร็จ", "success");
       setTimeout(() => navigate("/"), 800);
     } catch (err) { notify((err as Error).message, "error"); }
@@ -78,11 +82,11 @@ export default function BarGoldExchange() {
 
         <Stack spacing={2.5}>
           <TextField fullWidth label="ชื่อลูกค้า" value={customerName}
-            onChange={e => setCustomerName(e.target.value)} sx={inputSx} />
+            onChange={e => setForm(f => ({ ...f, customerName: e.target.value }))} sx={inputSx} />
 
           <TextField fullWidth label="น้ำหนักทองแท่งที่นำมาแลก (บาท)" type="number"
             inputProps={{ step: "0.01", min: "5" }}
-            value={weightBaht} onChange={e => setWeightBaht(e.target.value)}
+            value={weightBaht} onChange={e => setForm(f => ({ ...f, weightBaht: e.target.value }))}
             helperText="ขั้นต่ำ 5 บาท" sx={inputSx} />
 
           <Box sx={{ p: 2, borderRadius: 2, bgcolor: alpha(G.accent, 0.06), border: `1px solid ${alpha(G.accent, 0.2)}` }}>
@@ -93,11 +97,6 @@ export default function BarGoldExchange() {
           </Box>
 
           <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="flex-end">
-            <Button variant="outlined" onClick={() => navigate("/")}
-              sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,
-                '&:hover': { borderColor: G.accent, color: G.accent } }}>
-              ย้อนกลับ
-            </Button>
             <Button variant="contained" onClick={handleSubmit} disabled={loading}
               sx={{ borderRadius: '10px', bgcolor: G.accent, minHeight: 44, fontWeight: 600,
                 '&:hover': { bgcolor: alpha(G.accent, 0.85) } }}>

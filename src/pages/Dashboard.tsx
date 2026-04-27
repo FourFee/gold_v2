@@ -23,7 +23,8 @@ import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import ArrowForwardIcon  from '@mui/icons-material/ArrowForward';
 import { useNavigate }   from 'react-router-dom';
 
-import { API_BASE, GOLD_BAHT_TO_GRAM_BAR, GOLD_BAHT_TO_GRAM_ORNAMENT } from "../config";
+import { API_BASE, GOLD_BAHT_TO_GRAM_BAR } from "../config";
+import { useGoldPrice } from "../hooks/useGoldPrice";
 import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
 import { fmt, fmtD } from "../utils/numberFormat";
@@ -84,13 +85,15 @@ export default function Dashboard() {
   const [graphData, setGraphData]         = useState<GraphData[]>([]);
   const [barGoldStock, setBarGoldStock]   = useState<{ remaining_baht: number; remaining_grams: number } | null>(null);
   const [chartView, setChartView]         = useState<ChartView>("area");
+  const { price: livePrice, barBuy, barSell, ornBuy, ornSell } = useGoldPrice();
 
   const periodLabel = useMemo(() => {
     if (period === "all")  return "ทั้งหมด";
     if (period === "day") return `${selectedDate.format('D MMMM')} ${selectedDate.year() + 543}`;
     if (period === "week") {
-      const sat = selectedDate.subtract(selectedDate.day(), 'day');
-      return `${sat.format('D MMM')} – ${selectedDate.format('D MMM')} ${selectedDate.year() + 543}`;
+      const weekStart = selectedDate.startOf('week');
+      const weekEnd   = weekStart.add(6, 'day');
+      return `${weekStart.format('D MMM')} – ${weekEnd.format('D MMM')} ${weekEnd.year() + 543}`;
     }
     return `${MONTHS[selectedMonth - 1]} ${selectedYear + 543}`;
   }, [period, selectedDate, selectedMonth, selectedYear]);
@@ -116,10 +119,10 @@ export default function Dashboard() {
           const d = selectedDate.format('YYYY-MM-DD');
           sp.append('date_str', d); gp.append('date_str', d);
         } else if (period === "week") {
-          const sat = selectedDate.subtract(selectedDate.day(), 'day');
-          const end = selectedDate.format('YYYY-MM-DD');
-          sp.append('start_date', sat.format('YYYY-MM-DD')); sp.append('end_date', end);
-          gp.append('start_date', sat.subtract(4, 'week').format('YYYY-MM-DD')); gp.append('end_date', end);
+          const weekStart = selectedDate.startOf('week');
+          const weekEnd   = weekStart.add(6, 'day');
+          sp.append('start_date', weekStart.format('YYYY-MM-DD')); sp.append('end_date', weekEnd.format('YYYY-MM-DD'));
+          gp.append('start_date', weekStart.subtract(4, 'week').format('YYYY-MM-DD')); gp.append('end_date', weekEnd.format('YYYY-MM-DD'));
         } else {
           const cy = selectedYear > 2500 ? selectedYear - 543 : selectedYear;
           const mStart = dayjs().year(cy).month(selectedMonth - 1).startOf('month').format('YYYY-MM-DD');
@@ -278,15 +281,15 @@ export default function Dashboard() {
                     ))}
                   </Box>
 
-                  {/* น้ำหนักรวม ซื้อเข้า/ขายออก (บาท) */}
+                  {/* น้ำหนักรวม ซื้อเข้า/ขายออก (บาท) + ราคาเฉลี่ยทองแท่ง */}
                   <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5,
                     p: 1.5, borderRadius: '10px', border: `1px solid ${G.border}`, bgcolor: alpha(G.accent, 0.04) }}>
                     {(() => {
-                      const buyBaht  = ((summary?.bar_buy  || 0) + (summary?.buyIn   || 0)) / GOLD_BAHT_TO_GRAM_BAR;
-                      const sellBaht = ((summary?.bar_sell || 0) + (summary?.sellOut || 0)) / GOLD_BAHT_TO_GRAM_BAR;
+                      const buyBaht  = (summary?.bar_buy  || 0) / GOLD_BAHT_TO_GRAM_BAR;
+                      const sellBaht = (summary?.bar_sell || 0) / GOLD_BAHT_TO_GRAM_BAR;
                       return [
-                        { label: 'ซื้อเข้า', val: buyBaht,  color: G.success },
-                        { label: 'ขายออก',  val: sellBaht, color: G.danger  },
+                        { label: 'ซื้อเข้า', val: buyBaht,  color: G.success, avgPrice: summary?.avg_bar_buy_price_per_baht  || 0 },
+                        { label: 'ขายออก',  val: sellBaht, color: G.danger,  avgPrice: summary?.avg_bar_sell_price_per_baht || 0 },
                       ].map(x => (
                         <Box key={x.label} sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
                           <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: x.color, flexShrink: 0 }} />
@@ -295,6 +298,11 @@ export default function Dashboard() {
                             <Typography sx={{ fontFamily: MONO, fontSize: 16, fontWeight: 600, color: G.text, lineHeight: 1.2 }}>
                               {fmtD(x.val)} <Box component="span" sx={{ fontSize: 11, color: G.textMuted, fontWeight: 500 }}>บาท</Box>
                             </Typography>
+                            {x.avgPrice > 0 && (
+                              <Typography sx={{ fontFamily: MONO, fontSize: 11, color: x.color, mt: 0.25 }}>
+                                ฿{fmt(x.avgPrice)}<Box component="span" sx={{ color: G.textMuted, fontWeight: 400 }}>/บาท</Box>
+                              </Typography>
+                            )}
                           </Box>
                         </Box>
                       ));
@@ -328,18 +336,20 @@ export default function Dashboard() {
                   </Box>
                   <Grid container spacing={1}>
                     {[
-                      { label: 'แท่ง · รับซื้อ',    value: summary?.avg_bar_buy_price_per_baht  || 0, up: true  },
-                      { label: 'แท่ง · ขายออก',     value: summary?.avg_bar_sell_price_per_baht || 0, up: true  },
-                      { label: 'รูปพรรณ · รับซื้อ', value: (summary?.avg_bar_buy_price_per_gram  || 0) * GOLD_BAHT_TO_GRAM_ORNAMENT, up: false },
-                      { label: 'รูปพรรณ · ขายออก',  value: (summary?.avg_bar_sell_price_per_gram || 0) * GOLD_BAHT_TO_GRAM_ORNAMENT, up: false },
+                      { label: 'แท่ง · รับซื้อ',    value: livePrice ? barBuy(livePrice)  : 0, up: true  },
+                      { label: 'แท่ง · ขายออก',     value: livePrice ? barSell(livePrice) : 0, up: true  },
+                      { label: 'รูปพรรณ · รับซื้อ', value: livePrice ? ornBuy(livePrice)  : 0, up: false },
+                      { label: 'รูปพรรณ · ขายออก',  value: livePrice ? ornSell(livePrice) : 0, up: false },
                     ].map(p => (
                       <Grid item xs={6} key={p.label}>
                         <Box sx={{ p: 1.5, bgcolor: G.paper, border: `1px solid ${G.border}`, borderRadius: '10px' }}>
                           <Typography sx={{ fontSize: 10.5, color: G.textMuted, textTransform: 'uppercase', letterSpacing: '.1em', mb: 0.5 }}>{p.label}</Typography>
-                          <Typography sx={{ fontSize: 17, fontWeight: 600, fontFamily: MONO, color: G.text }}>฿{fmt(p.value)}</Typography>
+                          <Typography sx={{ fontSize: 17, fontWeight: 600, fontFamily: MONO, color: G.text }}>
+                            {livePrice ? `฿${fmt(p.value)}` : '—'}
+                          </Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
                             {p.up ? <TrendingUpIcon sx={{ fontSize: 12, color: G.success }} /> : <TrendingDownIcon sx={{ fontSize: 12, color: G.danger }} />}
-                            <Typography sx={{ fontSize: 11, fontWeight: 600, color: p.up ? G.success : G.danger }}>ราคาเฉลี่ย</Typography>
+                            <Typography sx={{ fontSize: 11, fontWeight: 600, color: p.up ? G.success : G.danger }}>สมาคมฯ</Typography>
                           </Box>
                         </Box>
                       </Grid>

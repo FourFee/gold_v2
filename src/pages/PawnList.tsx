@@ -99,14 +99,17 @@ export default function PawnList() {
   const startEdit = (i: number) => {
     setEditIndex(i);
     const item = filteredData[page * rowsPerPage + i];
-    setForm({ ...item, date: item.date ? new Date(item.date).toISOString().split('T')[0] : '' });
+    setForm({ ...item, date: item.date ? dayjs(item.date).format('YYYY-MM-DD') : '' });
   };
 
   const saveEdit = async () => {
-    if (editIndex === null) return;
-    const id = filteredData[page * rowsPerPage + editIndex].id;
+    if (editIndex === null || !form.id) return;
+    const id = form.id;
+    // แปลง date string (YYYY-MM-DD) เป็น ISO โดยถือเป็น local midnight
+    // เพื่อกัน bug timezone ทำให้วันที่ถอยกลับ 1 วัน
+    const payload = { ...form, date: form.date ? dayjs(form.date).toISOString() : null };
     const res = await fetch(`${API}/update/${id}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form),
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
     if (res.ok) { notify("บันทึกเรียบร้อย", "success"); setEditIndex(null); fetchData(); }
     else        { notify("บันทึกไม่สำเร็จ", "error"); }

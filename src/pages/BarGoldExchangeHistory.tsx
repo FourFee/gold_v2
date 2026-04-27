@@ -1,10 +1,10 @@
 // path: src/pages/BarGoldExchangeHistory.tsx
 
 import React, { useState, useEffect } from 'react';
-import { 
-    Container, Typography, Table, TableBody, TableCell, TableContainer, 
-    TableHead, TableRow, Paper, Alert, CircularProgress, 
-    IconButton, TextField,Box 
+import {
+    Container, Typography, Table, TableBody, TableCell, TableContainer,
+    TableHead, TableRow, Paper, Alert, CircularProgress, Skeleton,
+    IconButton, TextField,Box
 } from '@mui/material';
 import { Edit, Save, Delete } from '@mui/icons-material';
 import { API_BASE } from "../config";
@@ -65,11 +65,10 @@ export default function BarGoldExchangeHistory() {
     // 📌 Start editing
     const startEdit = (row: ExchangeData) => {
         setEditId(row.id);
-        // Copy data to form, format date for date input
-        setForm({ 
+        setForm({
             ...row,
-            date: row.date ? row.date.split('T')[0] : '' 
-        }); 
+            date: row.date ? dayjs(row.date).format('YYYY-MM-DDTHH:mm') : ''
+        });
     };
 
     // 📌 Handle form changes
@@ -135,7 +134,13 @@ export default function BarGoldExchangeHistory() {
     return (
         <Container maxWidth="lg" sx={{ mt: 4 }}>
             {loading ? (
-                <CircularProgress />
+                <Box>
+                    <Skeleton variant="text" width="40%" height={36} sx={{ mb: 2 }} />
+                    <Skeleton variant="rectangular" height={56} sx={{ borderRadius: 1, mb: 1 }} />
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <Skeleton key={i} variant="rectangular" height={48} sx={{ borderRadius: 1, mb: 1 }} />
+                    ))}
+                </Box>
             ) : error ? (
                 <Alert severity="error">Error loading data: {error}</Alert>
             ) : history.length === 0 ? (
@@ -183,7 +188,7 @@ export default function BarGoldExchangeHistory() {
                                                     name="date"
                                                     type="datetime-local" // 👈 เปลี่ยนเป็น datetime-local
                                                     // 🚨 ต้อง Format ค่าให้เป็นรูปแบบ 'YYYY-MM-DDTHH:mm' ก่อนใส่ใน input
-                                                    value={form.date ? new Date(form.date).toISOString().slice(0, 16) : ''} 
+                                                    value={form.date || ''}
                                                     onChange={handleChange}
                                                     size="small"
                                                     InputLabelProps={{ shrink: true }}
