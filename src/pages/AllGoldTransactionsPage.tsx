@@ -70,8 +70,11 @@ export default function AllGoldTransactionsPage() {
 
   const handleSubmit = async () => {
     const payload = {
-      // กัน timezone bug — ส่ง local-midnight ISO
-      date:           form.date ? dayjs(form.date).toISOString() : "",
+      date: form.date ? (() => {
+        const d = dayjs(form.date);
+        const now = dayjs();
+        return (d.isSame(now, 'day') ? now : d.hour(12).minute(0).second(0)).toISOString();
+      })() : "",
       redeem:         parseFloat(form.redeem        || "0"),
       interest:       parseFloat(form.interest      || "0"),
       pawn:           parseFloat(form.pawn          || "0"),

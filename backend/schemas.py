@@ -1,7 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import DateTime
 from datetime import datetime, timezone
-from typing import Literal
+from typing import Literal, Optional
 
 class PawnCreate(BaseModel):
     date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -17,14 +17,14 @@ class PawnCreate(BaseModel):
 class BarGoldCreate(BaseModel):
     date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     firstname: str
-    lastname: str
-    idcard: str
-    address: str
-    phone: str
+    lastname: Optional[str] = ""
+    idcard: Optional[str] = ""
+    address: Optional[str] = ""
+    phone: Optional[str] = ""
     weightBaht: float
     weightGram: float
     amount: float
-    remark: str
+    remark: Optional[str] = ""
     mode: Literal["buy", "sell"]
 
 class OrnamentGoldCreate(BaseModel):

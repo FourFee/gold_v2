@@ -12,7 +12,7 @@ import { usePrint } from "../components/ReceiptPrint";
 import PrintIcon from "@mui/icons-material/Print";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
-import { validateThaiId } from "../utils/validateThaiId";
+
 import CustomerForm from "../components/CustomerForm";
 import { makeG } from "../utils/dashboardTokens";
 import { useGoldPrice } from "../hooks/useGoldPrice";
@@ -38,6 +38,7 @@ export default function BarGoldPage() {
   const { print } = usePrint();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"buy" | "sell">("buy");
+  const [saving, setSaving] = useState(false);
   const { price, loading: priceLoading, error: priceError, refetch } = useGoldPrice();
 
 
@@ -53,36 +54,48 @@ export default function BarGoldPage() {
   const validate = () => {
     const wb = parseFloat(form.weightBaht);
     const a  = parseFloat(form.amount);
-    if (!form.firstname || !form.idcard) { notify("กรุณากรอกชื่อและเลขบัตร", "error"); return null; }
-    if (form.idcard && !validateThaiId(form.idcard.replace(/\D/g, ""))) { notify("เลขบัตรประชาชนไม่ถูกต้อง", "error"); return null; }
+    if (!form.firstname) { notify("กรุณากรอกชื่อ", "error"); return null; }
     if (isNaN(wb) || wb <= 0) { notify("น้ำหนักต้องมากกว่า 0", "error"); return null; }
     if (isNaN(a)  || a  <= 0) { notify("จำนวนเงินต้องมากกว่า 0", "error"); return null; }
     return { wb, a };
   };
 
   const saveToServer = async (wb: number, a: number) => {
+    const wg = parseFloat(form.weightGram);
+    const payload = {
+      ...form,
+      mode,
+      weightBaht: wb,
+      weightGram: isNaN(wg) ? wb * 15.244 : wg,
+      amount: a,
+      date: (() => { const d = dayjs(form.date); const now = dayjs(); return (d.isValid() && d.isSame(now, 'day') ? now : d.isValid() ? d : now).toISOString(); })(),
+    };
     const res = await fetch(`${API_BASE}/bar-gold/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, mode, weightBaht: wb, weightGram: parseFloat(form.weightGram), amount: a,
-        date: (() => { const d = dayjs(form.date); const now = dayjs(); return (d.isSame(now, 'day') ? now : d).toISOString(); })(),
-      }),
+      body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error("บันทึกไม่สำเร็จ");
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail?.detail ? String(detail.detail) : `บันทึกไม่สำเร็จ (${res.status})`);
+    }
   };
 
   const handleSave = async () => {
     const v = validate(); if (!v) return;
+    setSaving(true);
     try {
       await saveToServer(v.wb, v.a);
       notify("บันทึกเรียบร้อย", "success");
       clearForm();
       navigate("/bar-list");
     } catch (err) { notify((err as Error).message, "error"); }
+    finally { setSaving(false); }
   };
 
   const handleSaveAndPrint = async () => {
     const v = validate(); if (!v) return;
+    setSaving(true);
     try {
       await saveToServer(v.wb, v.a);
       notify("บันทึกเรียบร้อย", "success");
@@ -90,6 +103,7 @@ export default function BarGoldPage() {
       clearForm();
       navigate("/bar-list");
     } catch (err) { notify((err as Error).message, "error"); }
+    finally { setSaving(false); }
   };
 
   const handleReadCard = async () => {
@@ -273,21 +287,21 @@ export default function BarGoldPage() {
                   '&:hover': { borderColor: G.accent, color: G.accent } }}>
                 พิมพ์ใบเสร็จ
               </Button>
-              <Button variant="outlined" onClick={handleSave}
+              <Button variant="outlined" onClick={handleSave} disabled={saving}
                 sx={{ borderRadius: '10px', borderColor: G.accent, color: G.accent, minHeight: 44, fontWeight: 600,
                   '&:hover': { bgcolor: alpha(G.accent, 0.08) } }}>
-                บันทึก
+                {saving ? "กำลังบันทึก..." : "บันทึก"}
               </Button>
-              <Button variant="contained" onClick={handleSaveAndPrint}
+              <Button variant="contained" onClick={handleSaveAndPrint} disabled={saving}
                 sx={{ borderRadius: '10px', bgcolor: G.accent, minHeight: 44, fontWeight: 600,
                   '&:hover': { bgcolor: alpha(G.accent, 0.85) } }}>
-                บันทึก + พิมพ์
+                {saving ? "กำลังบันทึก..." : "บันทึก + พิมพ์"}
               </Button>
             </Stack>
           </Grid>
         </Grid>
       </Paper>
-      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleClose} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+      <Snackbar open={snackbar.open} autoHideDuration={snackbar.severity === 'error' ? 6000 : 3000} onClose={handleClose} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         <Alert severity={snackbar.severity} onClose={handleClose}>{snackbar.message}</Alert>
       </Snackbar>
     </Box>
