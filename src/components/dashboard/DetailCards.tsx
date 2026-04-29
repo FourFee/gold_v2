@@ -36,9 +36,10 @@ function GroupHead({ title, tag, hint, borderTop, G }: {
   );
 }
 
-function MetricCell({ label, color, primary, primaryUnit, sub, subVal, sub2, sub2Val, G }: {
+function MetricCell({ label, color, primary, primaryUnit, sub, subVal, sub2, sub2Val, sub3, sub3Val, sub3Color, G }: {
   label: string; color: string; primary: string; primaryUnit?: string;
   sub?: string; subVal?: string; sub2?: string; sub2Val?: string;
+  sub3?: string; sub3Val?: string; sub3Color?: string;
   G: ReturnType<typeof makeG>;
 }) {
   return (
@@ -73,6 +74,12 @@ function MetricCell({ label, color, primary, primaryUnit, sub, subVal, sub2, sub
           <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mt: 0.25 }}>
             <span>{sub2}</span>
             {sub2Val && <strong style={{ color: G.textSub, fontFamily: MONO }}>{sub2Val}</strong>}
+          </Box>
+        )}
+        {sub3 && (
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, mt: 0.25 }}>
+            <span>{sub3}</span>
+            {sub3Val && <strong style={{ color: sub3Color || G.textSub, fontFamily: MONO }}>{sub3Val}</strong>}
           </Box>
         )}
       </Box>
@@ -115,6 +122,8 @@ export default function DetailCards({ summary, calc, isLoading }: Props) {
     sellAmt:  summary?.bar_sell_amount || 0,
     profit:   summary?.bar_profit      || 0,
     totalGram:(summary?.bar_buy || 0) + (summary?.bar_sell || 0),
+    avgBuyPrice:  summary?.avg_bar_buy_price_per_baht  || 0,
+    avgSellPrice: summary?.avg_bar_sell_price_per_baht || 0,
   };
 
   return (
@@ -129,7 +138,8 @@ export default function DetailCards({ summary, calc, isLoading }: Props) {
               <MetricCell G={G} label="ทองแท่งซื้อเข้า" color={G.accent}
                 primary={fmtD(bar.buy)} primaryUnit="บาท"
                 sub="น้ำหนัก (กรัม)" subVal={`${fmtD(bar.buyGram)} g`}
-                sub2="มูลค่าเงิน" sub2Val={`฿${fmt(bar.buyAmt)}`} />
+                sub2="มูลค่าเงิน" sub2Val={`฿${fmt(bar.buyAmt)}`}
+                sub3="ราคาเฉลี่ย" sub3Val={bar.avgBuyPrice > 0 ? `฿${fmt(bar.avgBuyPrice)}/บาท` : '-'} sub3Color={G.accent} />
             </Box>
           </Grid>
           <Grid item xs={6} md={3} sx={{ display: 'flex' }}>
@@ -137,7 +147,8 @@ export default function DetailCards({ summary, calc, isLoading }: Props) {
               <MetricCell G={G} label="ทองแท่งขายออก" color="#9c3a2a"
                 primary={fmtD(bar.sell)} primaryUnit="บาท"
                 sub="น้ำหนัก (กรัม)" subVal={`${fmtD(bar.sellGram)} g`}
-                sub2="มูลค่าเงิน" sub2Val={`฿${fmt(bar.sellAmt)}`} />
+                sub2="มูลค่าเงิน" sub2Val={`฿${fmt(bar.sellAmt)}`}
+                sub3="ราคาเฉลี่ย" sub3Val={bar.avgSellPrice > 0 ? `฿${fmt(bar.avgSellPrice)}/บาท` : '-'} sub3Color="#9c3a2a" />
             </Box>
           </Grid>
           <Grid item xs={6} md={3} sx={{ display: 'flex' }}>

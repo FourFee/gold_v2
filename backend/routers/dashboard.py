@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 from database import get_db
-from models import BarGold, AllGoldTransaction
+from models import BarGold, AllGoldTransaction, OrnamentGold
 from datetime import datetime, timedelta
 from collections import defaultdict
 from typing import Optional
@@ -158,7 +158,12 @@ def get_summary(
         BarGold.date >= start_date_obj,
         BarGold.date <= end_date_obj
     ).all()
-    
+
+    orn_transactions_period = db.query(OrnamentGold).filter(
+        OrnamentGold.date >= start_date_obj,
+        OrnamentGold.date <= end_date_obj
+    ).all()
+
     # ✅ แก้ไข: เพิ่มการคำนวณ diamondBuyIn และ diamondSellOut
     sell_out_total = sum(t.sellOut or 0.0 for t in all_transactions_period)
     exchange_total = sum(t.exchange or 0.0 for t in all_transactions_period)
@@ -188,7 +193,17 @@ def get_summary(
     # ✅ แก้ไข: คำนวณราคาเฉลี่ยต่อกรัม
     avg_bar_buy_price_per_gram = bar_buy_amount / bar_buy_total_weight if bar_buy_total_weight > 0 else 0.0
     avg_bar_sell_price_per_gram = bar_sell_amount / bar_sell_total_weight if bar_sell_total_weight > 0 else 0.0
-    
+
+    orn_buy_txns  = [t for t in orn_transactions_period if t.mode == "sell"]
+    orn_sell_txns = [t for t in orn_transactions_period if t.mode == "buy"]
+    orn_buy_weight  = sum(t.weight or 0.0 for t in orn_buy_txns)
+    orn_sell_weight = sum(t.weight or 0.0 for t in orn_sell_txns)
+    orn_buy_amount  = sum(t.amount or 0.0 for t in orn_buy_txns)
+    orn_sell_amount = sum(t.amount or 0.0 for t in orn_sell_txns)
+    BAHT_TO_GRAM_ORN = 15.2
+    avg_orn_buy_price_per_baht  = (orn_buy_amount  / (orn_buy_weight  / BAHT_TO_GRAM_ORN)) if orn_buy_weight  > 0 else 0.0
+    avg_orn_sell_price_per_baht = (orn_sell_amount / (orn_sell_weight / BAHT_TO_GRAM_ORN)) if orn_sell_weight > 0 else 0.0
+
     plated_gold_total = sum(t.platedGold or 0.0 for t in all_transactions_period)
 
     total_gold_flow = (buy_in_total + bar_buy_total_weight) - (sell_out_total + bar_sell_total_weight)
@@ -223,7 +238,9 @@ def get_summary(
         "avg_bar_sell_price_per_baht": avg_bar_sell_price_per_baht,  # ราคาเฉลี่ยต่อบาทน้ำหนัก (ขายออก)
         "avg_bar_buy_price_per_gram": avg_bar_buy_price_per_gram,  # ราคาเฉลี่ยต่อกรัม (ซื้อเข้า)
         "avg_bar_sell_price_per_gram": avg_bar_sell_price_per_gram,  # ราคาเฉลี่ยต่อกรัม (ขายออก)
-        "bar_profit": bar_sell_amount - bar_buy_amount,  # กำไรทองแท่ง
+        "bar_profit": bar_sell_amount - bar_buy_amount,
+        "avg_orn_buy_price_per_baht":  avg_orn_buy_price_per_baht,
+        "avg_orn_sell_price_per_baht": avg_orn_sell_price_per_baht,
     }
 
 

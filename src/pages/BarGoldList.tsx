@@ -462,17 +462,20 @@ export default function BarGoldList() {
               {/* Totals row */}
               {displayedData.length > 0 && (
                 <TableRow sx={{ bgcolor: alpha(G.accent, 0.04), '& td': { borderTop: `1px solid ${G.border}`, py: 1.5, px: 2 } }}>
-                  <TableCell colSpan={6}>
+                  {/* วันที่ + ชื่อ + นามสกุล + เบอร์โทร visible; เลขบัตร + ที่อยู่ hidden */}
+                  <TableCell colSpan={3}>
                     <Typography sx={{ fontSize: 13, fontWeight: 600, color: G.textSub }}>
                       รวม {filteredData.length} รายการ
                     </Typography>
                   </TableCell>
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} colSpan={2} />
+                  <TableCell />
                   <TableCell align="right">
                     <Typography sx={{ fontFamily: MONO, fontSize: 13, fontWeight: 700, color: G.brass }}>
                       {totals.totalWeightBaht.toFixed(2)}
                     </Typography>
                   </TableCell>
-                  <TableCell align="right">
+                  <TableCell align="right" sx={{ display: { xs: 'none', md: 'table-cell' } }}>
                     <Typography sx={{ fontFamily: MONO, fontSize: 13, fontWeight: 600, color: G.textSub }}>
                       {totals.totalWeightGram.toFixed(2)}
                     </Typography>
@@ -482,7 +485,8 @@ export default function BarGoldList() {
                       ฿{totals.totalAmount.toLocaleString('th-TH', { minimumFractionDigits: 2 })}
                     </Typography>
                   </TableCell>
-                  <TableCell /><TableCell />
+                  <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }} />
+                  <TableCell />
                 </TableRow>
               )}
             </TableBody>

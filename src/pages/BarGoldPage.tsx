@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import { Box, TextField, Typography, Paper, Button, Stack, Grid, alpha, Tooltip, IconButton } from "@mui/material";
@@ -38,16 +38,8 @@ export default function BarGoldPage() {
   const { print } = usePrint();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"buy" | "sell">("buy");
-  const { price, loading: priceLoading, error: priceError, refetch, barBuy, barSell } = useGoldPrice();
+  const { price, loading: priceLoading, error: priceError, refetch } = useGoldPrice();
 
-  // auto-fill amount เมื่อ weight หรือ mode เปลี่ยน
-  useEffect(() => {
-    if (!price || !form.weightBaht) return;
-    const wb = parseFloat(form.weightBaht);
-    if (isNaN(wb) || wb <= 0) return;
-    const pricePerBaht = mode === "buy" ? barSell(price) : barBuy(price);
-    setForm(prev => ({ ...prev, amount: (wb * pricePerBaht).toFixed(2) }));
-  }, [form.weightBaht, mode, price]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -72,7 +64,9 @@ export default function BarGoldPage() {
     const res = await fetch(`${API_BASE}/bar-gold/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, mode, weightBaht: wb, weightGram: parseFloat(form.weightGram), amount: a, date: dayjs(form.date).toISOString() }),
+      body: JSON.stringify({ ...form, mode, weightBaht: wb, weightGram: parseFloat(form.weightGram), amount: a,
+        date: (() => { const d = dayjs(form.date); const now = dayjs(); return (d.isSame(now, 'day') ? now : d).toISOString(); })(),
+      }),
     });
     if (!res.ok) throw new Error("บันทึกไม่สำเร็จ");
   };
@@ -260,8 +254,12 @@ export default function BarGoldPage() {
               InputProps={{ sx: { fontFamily: MONO, bgcolor: alpha(G.accent, 0.04) } }} />
           </Grid>
           <Grid item xs={12}>
-            <TextField fullWidth label="จำนวนเงิน (บาท)" name="amount" value={form.amount}
-              onChange={handleChange} type="number" inputProps={{ min: 0 }} sx={inputSx} />
+            <TextField fullWidth
+              label="จำนวนเงิน (บาท)"
+              name="amount" value={form.amount}
+              onChange={handleChange} type="number" inputProps={{ min: 0 }}
+              sx={inputSx}
+            />
           </Grid>
           <Grid item xs={12}>
             <TextField fullWidth multiline rows={2} label="หมายเหตุ" name="remark"

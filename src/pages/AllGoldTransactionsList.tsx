@@ -84,10 +84,10 @@ export default function AllGoldTransactionsList() {
 
   const displayedData = filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
-  const totals = useMemo(() => data.reduce((acc, item) => {
+  const totals = useMemo(() => filteredData.reduce((acc, item) => {
     NUM_FIELDS.forEach(f => { acc[f] = (acc[f] || 0) + (item[f] || 0); });
     return acc;
-  }, {} as Record<string, number>), [data]);
+  }, {} as Record<string, number>), [filteredData]);
 
   const startEdit = (i: number) => { setEditIndex(i); setForm({ ...displayedData[i] }); };
 
@@ -331,7 +331,7 @@ export default function AllGoldTransactionsList() {
               {displayedData.length > 0 && (
                 <TableRow sx={{ bgcolor: alpha(G.accent, 0.04), '& td': { borderTop: `1px solid ${G.border}`, py: 1.5, px: 1.5 } }}>
                   <TableCell>
-                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: G.textSub }}>รวม {data.length} รายการ</Typography>
+                    <Typography sx={{ fontSize: 12.5, fontWeight: 700, color: G.textSub }}>รวม {filteredData.length} รายการ</Typography>
                   </TableCell>
                   {COLS.map(col => (
                     <TableCell key={col.key} align="right">

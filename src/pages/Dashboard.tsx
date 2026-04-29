@@ -19,12 +19,12 @@ import TrendingUpIcon    from '@mui/icons-material/TrendingUp';
 import TrendingDownIcon  from '@mui/icons-material/TrendingDown';
 import ChevronLeftIcon   from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon  from '@mui/icons-material/ChevronRight';
-import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
+
 import ArrowForwardIcon  from '@mui/icons-material/ArrowForward';
 import { useNavigate }   from 'react-router-dom';
 
 import { API_BASE, GOLD_BAHT_TO_GRAM_BAR } from "../config";
-import { useGoldPrice } from "../hooks/useGoldPrice";
+
 import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
 import { fmt, fmtD } from "../utils/numberFormat";
@@ -85,7 +85,6 @@ export default function Dashboard() {
   const [graphData, setGraphData]         = useState<GraphData[]>([]);
   const [barGoldStock, setBarGoldStock]   = useState<{ remaining_baht: number; remaining_grams: number } | null>(null);
   const [chartView, setChartView]         = useState<ChartView>("area");
-  const { price: livePrice, barBuy, barSell, ornBuy, ornSell } = useGoldPrice();
 
   const periodLabel = useMemo(() => {
     if (period === "all")  return "ทั้งหมด";
@@ -176,7 +175,7 @@ export default function Dashboard() {
   const greeting   = hour < 12 ? 'สวัสดีตอนเช้า' : hour < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
   const periodText = period === 'all' ? 'ทั้งหมด' : period === 'month' ? 'เดือนนี้' : period === 'week' ? 'สัปดาห์นี้' : 'วันนี้';
   const profitPos  = (calc?.profit  || 0) >= 0;
-  const pawnPos    = (calc?.pawnProfit || 0) >= 0;
+
   const stockBaht  = barGoldStock ? barGoldStock.remaining_grams / GOLD_BAHT_TO_GRAM_BAR : 0;
 
   const cardSx = { borderRadius: 3, border: `1px solid ${G.border}`, boxShadow: '0 1px 0 rgba(27,23,19,.04),0 8px 24px -14px rgba(27,23,19,.14)', bgcolor: G.paper };
@@ -261,18 +260,26 @@ export default function Dashboard() {
                   <Typography sx={{ color: G.textMuted, fontSize: 13, mb: 1 }}>
                     {greeting} · วัน{dayjs().format('dddd')}ที่ {dayjs().format('D')} {dayjs().format('MMMM')} {dayjs().year() + 543}
                   </Typography>
+                  {(() => {
+                    const sellBaht   = (summary?.bar_sell || 0) / GOLD_BAHT_TO_GRAM_BAR;
+                    const avgSell    = summary?.avg_bar_sell_price_per_baht || 0;
+                    const avgBuy     = summary?.avg_bar_buy_price_per_baht  || 0;
+                    const barProfit  = (avgSell - avgBuy) * sellBaht;
+                    const barMargin  = avgSell > 0 ? ((avgSell - avgBuy) / avgSell * 100) : 0;
+                    const profitPos  = barProfit >= 0;
+                    return (<>
                   <Typography component="h1"
                     sx={{ fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(20px,2.4vw,30px)', lineHeight: 1.2, mb: 1.5, color: G.text }}>
-                    กำไรขั้นต้น{periodText}{' '}
-                    <Box component="em" sx={{ fontStyle: 'italic', color: G.accent, fontWeight: 600, fontFamily: MONO }}>
-                      ฿&thinsp;{fmt(calc?.profit || 0)}
+                    กำไรจากทองแท่ง{periodText}{' '}
+                    <Box component="em" sx={{ fontStyle: 'italic', color: profitPos ? G.success : G.danger, fontWeight: 600, fontFamily: MONO }}>
+                      ฿&thinsp;{fmt(barProfit)}
                     </Box>
                   </Typography>
                   <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', fontSize: 12.5, color: G.textMuted, mb: 2 }}>
                     {[
-                      { dot: true, label: `มาร์จิน ${calc?.margin.toFixed(1) || '0.0'}%` },
-                      { dot: true, label: `ต้นทุน ฿${fmt(calc?.cost || 0)}` },
-                      { dot: true, label: `รายได้ ฿${fmt(calc?.rev || 0)}` },
+                      { label: `สเปรด ฿${fmt(avgSell - avgBuy)}/บาท` },
+                      { label: `ขายออก ${fmtD(sellBaht)} บาทน้ำหนัก` },
+                      { label: `มาร์จิน ${barMargin.toFixed(2)}%` },
                     ].map(x => (
                       <Box key={x.label} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                         <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: G.accent }} />
@@ -281,15 +288,15 @@ export default function Dashboard() {
                     ))}
                   </Box>
 
-                  {/* น้ำหนักรวม ซื้อเข้า/ขายออก (บาท) + ราคาเฉลี่ยทองแท่ง */}
+                  {/* น้ำหนักบาท + ค่าเฉลี่ย */}
                   <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5,
                     p: 1.5, borderRadius: '10px', border: `1px solid ${G.border}`, bgcolor: alpha(G.accent, 0.04) }}>
                     {(() => {
                       const buyBaht  = (summary?.bar_buy  || 0) / GOLD_BAHT_TO_GRAM_BAR;
                       const sellBaht = (summary?.bar_sell || 0) / GOLD_BAHT_TO_GRAM_BAR;
                       return [
-                        { label: 'ซื้อเข้า', val: buyBaht,  color: G.success, avgPrice: summary?.avg_bar_buy_price_per_baht  || 0 },
-                        { label: 'ขายออก',  val: sellBaht, color: G.danger,  avgPrice: summary?.avg_bar_sell_price_per_baht || 0 },
+                        { label: 'ทองแท่งซื้อเข้า', val: buyBaht,  color: G.success, avgPrice: summary?.avg_bar_buy_price_per_baht  || 0 },
+                        { label: 'ทองแท่งขายออก',   val: sellBaht, color: G.danger,  avgPrice: summary?.avg_bar_sell_price_per_baht || 0 },
                       ].map(x => (
                         <Box key={x.label} sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
                           <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: x.color, flexShrink: 0 }} />
@@ -298,22 +305,22 @@ export default function Dashboard() {
                             <Typography sx={{ fontFamily: MONO, fontSize: 16, fontWeight: 600, color: G.text, lineHeight: 1.2 }}>
                               {fmtD(x.val)} <Box component="span" sx={{ fontSize: 11, color: G.textMuted, fontWeight: 500 }}>บาท</Box>
                             </Typography>
-                            {x.avgPrice > 0 && (
-                              <Typography sx={{ fontFamily: MONO, fontSize: 11, color: x.color, mt: 0.25 }}>
-                                ฿{fmt(x.avgPrice)}<Box component="span" sx={{ color: G.textMuted, fontWeight: 400 }}>/บาท</Box>
-                              </Typography>
-                            )}
+                            <Typography sx={{ fontFamily: MONO, fontSize: 11, color: x.color, mt: 0.25 }}>
+                              {x.avgPrice > 0 ? <>฿{fmt(x.avgPrice)}<Box component="span" sx={{ color: G.textMuted, fontWeight: 400 }}>/บาท</Box></> : '—'}
+                            </Typography>
                           </Box>
                         </Box>
                       ));
                     })()}
                   </Box>
+                    </>);
+                  })()}
                 </CardContent>
               </Card>
             )}
           </Grid>
 
-          {/* Live price card */}
+          {/* Avg price card */}
           <Grid item xs={12} md={5}>
             {isLoading ? <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3 }} /> : (
               <Card sx={{ ...cardSx,
@@ -325,31 +332,28 @@ export default function Dashboard() {
                       bgcolor: alpha(G.accent, 0.12), color: G.accent,
                       fontWeight: 600, fontSize: 11, px: 1.25, py: 0.375, borderRadius: '999px',
                       letterSpacing: '.1em', textTransform: 'uppercase' }}>
-                      <FiberManualRecordIcon sx={{ fontSize: 7,
-                        '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: .35 } },
-                        animation: 'pulse 1.8s infinite' }} />
-                      LIVE · ราคาทอง
+                      ราคาเฉลี่ย · ของร้าน
                     </Box>
                     <Typography sx={{ color: G.textMuted, fontSize: 12, ml: 'auto', fontFamily: MONO }}>
-                      {dayjs().format('HH:mm:ss น.')}
+                      {periodLabel}
                     </Typography>
                   </Box>
                   <Grid container spacing={1}>
                     {[
-                      { label: 'แท่ง · รับซื้อ',    value: livePrice ? barBuy(livePrice)  : 0, up: true  },
-                      { label: 'แท่ง · ขายออก',     value: livePrice ? barSell(livePrice) : 0, up: true  },
-                      { label: 'รูปพรรณ · รับซื้อ', value: livePrice ? ornBuy(livePrice)  : 0, up: false },
-                      { label: 'รูปพรรณ · ขายออก',  value: livePrice ? ornSell(livePrice) : 0, up: false },
+                      { label: 'แท่ง · รับซื้อ',    value: summary?.avg_bar_buy_price_per_baht  || 0, up: true  },
+                      { label: 'แท่ง · ขายออก',     value: summary?.avg_bar_sell_price_per_baht || 0, up: true  },
+                      { label: 'รูปพรรณ · รับซื้อ', value: summary?.avg_orn_buy_price_per_baht  || 0, up: false },
+                      { label: 'รูปพรรณ · ขายออก',  value: summary?.avg_orn_sell_price_per_baht || 0, up: false },
                     ].map(p => (
                       <Grid item xs={6} key={p.label}>
                         <Box sx={{ p: 1.5, bgcolor: G.paper, border: `1px solid ${G.border}`, borderRadius: '10px' }}>
                           <Typography sx={{ fontSize: 10.5, color: G.textMuted, textTransform: 'uppercase', letterSpacing: '.1em', mb: 0.5 }}>{p.label}</Typography>
                           <Typography sx={{ fontSize: 17, fontWeight: 600, fontFamily: MONO, color: G.text }}>
-                            {livePrice ? `฿${fmt(p.value)}` : '—'}
+                            {p.value > 0 ? `฿${fmt(p.value)}` : '—'}
                           </Typography>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
                             {p.up ? <TrendingUpIcon sx={{ fontSize: 12, color: G.success }} /> : <TrendingDownIcon sx={{ fontSize: 12, color: G.danger }} />}
-                            <Typography sx={{ fontSize: 11, fontWeight: 600, color: p.up ? G.success : G.danger }}>สมาคมฯ</Typography>
+                            <Typography sx={{ fontSize: 11, fontWeight: 600, color: p.up ? G.success : G.danger }}>เฉลี่ย/บาท</Typography>
                           </Box>
                         </Box>
                       </Grid>
@@ -423,17 +427,17 @@ export default function Dashboard() {
                 <CardContent sx={{ p: { xs: 2.25, sm: 2.75 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
                     <Box sx={{ px: 1, py: 0.25, borderRadius: '999px', fontSize: 11, fontWeight: 600,
-                      bgcolor: pawnPos ? G.successBg : G.dangerBg, color: pawnPos ? G.success : G.danger }}>
-                      {pawnPos ? 'กำไร' : 'ขาดทุน'}
+                      bgcolor: G.successBg, color: G.success }}>
+                      รายได้
                     </Box>
                   </Box>
-                  <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>กำไรจำนำ</Typography>
+                  <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ดอกเบี้ยจำนำ</Typography>
                   <Typography sx={{ fontFamily: MONO, fontSize: 'clamp(26px,3vw,34px)', fontWeight: 600,
-                    color: pawnPos ? G.success : G.danger, letterSpacing: '-.015em', mt: 1.25, mb: 0.75 }}>
-                    ฿&thinsp;{fmt(calc?.pawnProfit || 0)}
+                    color: G.success, letterSpacing: '-.015em', mt: 1.25, mb: 0.75 }}>
+                    ฿&thinsp;{fmt(summary?.interest || 0)}
                   </Typography>
                   <Typography sx={{ color: G.textMuted, fontSize: 12 }}>
-                    ดอก ฿{fmt(summary?.interest||0)} · ไถ่ ฿{fmt(summary?.redeem||0)} · จำนำ ฿{fmt(summary?.pawn||0)}
+                    ไถ่ ฿{fmt(summary?.redeem||0)} · จำนำ ฿{fmt(summary?.pawn||0)}
                   </Typography>
                 </CardContent>
               </Card>

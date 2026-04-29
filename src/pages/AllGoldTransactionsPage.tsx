@@ -3,7 +3,11 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Box, TextField, Typography, Paper, Button, Stack, Grid, alpha } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { Snackbar, Alert } from "@mui/material";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
+import "dayjs/locale/th";
 import { API_BASE } from "../config";
 import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
@@ -108,6 +112,7 @@ export default function AllGoldTransactionsPage() {
   };
 
   return (
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="th">
     <Box sx={{ bgcolor: G.bg, minHeight: '100vh', p: { xs: 1.5, sm: 3, md: 4 } }}>
       <Paper elevation={0} sx={{
         p: { xs: 2.5, sm: 3.5 }, borderRadius: 3, maxWidth: 820, mx: 'auto',
@@ -129,9 +134,16 @@ export default function AllGoldTransactionsPage() {
 
         <Grid container spacing={2.5}>
           <Grid item xs={12} sm={6}>
-            <TextField fullWidth label="วันที่" name="date" type="date"
-              value={form.date} onChange={handleChange}
-              InputLabelProps={{ shrink: true }} sx={inputSx} />
+            <DatePicker
+              label="วันที่"
+              value={form.date ? dayjs(form.date) : null}
+              onChange={(v) => setForm(f => ({ ...f, date: v ? v.format('YYYY-MM-DD') : '' }))}
+              format="DD/MM/YYYY"
+              slotProps={{
+                textField: { fullWidth: true, sx: inputSx },
+                popper: { sx: { '& .MuiPickersDay-root.Mui-selected': { bgcolor: G.accent } } },
+              }}
+            />
           </Grid>
 
           {FIELDS.map(f => (
@@ -168,5 +180,6 @@ export default function AllGoldTransactionsPage() {
         <Alert severity={snackbar.severity} onClose={handleClose}>{snackbar.message}</Alert>
       </Snackbar>
     </Box>
+    </LocalizationProvider>
   );
 }

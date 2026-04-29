@@ -51,6 +51,7 @@ export interface SummaryData {
   avg_bar_buy_price_per_baht: number; avg_bar_sell_price_per_baht: number;
   avg_bar_buy_price_per_gram: number; avg_bar_sell_price_per_gram: number;
   bar_profit: number;
+  avg_orn_buy_price_per_baht: number; avg_orn_sell_price_per_baht: number;
 }
 
 export interface CalcResult {
