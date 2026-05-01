@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
-import { Box, TextField, Typography, Paper, Button, Stack, Grid, alpha, Tooltip, IconButton } from "@mui/material";
-import RefreshIcon from "@mui/icons-material/Refresh";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { Box, TextField, Typography, Paper, Button, Stack, Grid, alpha } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { API_BASE, GOLD_BAHT_TO_GRAM_BAR } from "../config";
 import { Snackbar, Alert } from "@mui/material";
@@ -15,7 +17,6 @@ import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 
 import CustomerForm from "../components/CustomerForm";
 import { makeG } from "../utils/dashboardTokens";
-import { useGoldPrice } from "../hooks/useGoldPrice";
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
@@ -25,7 +26,7 @@ const MODES = [
 ] as const;
 
 const BAR_INITIAL = {
-  date: dayjs().format('YYYY-MM-DD'),
+  date: "",
   firstname: "", lastname: "", idcard: "", address: "", phone: "",
   weightBaht: "", weightGram: "", amount: "", remark: "",
 };
@@ -39,7 +40,9 @@ export default function BarGoldPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"buy" | "sell">("buy");
   const [saving, setSaving] = useState(false);
-  const { price, loading: priceLoading, error: priceError, refetch } = useGoldPrice();
+  const [dateEdited, setDateEdited] = useState(false);
+
+  useEffect(() => { setForm(prev => ({ ...prev, date: "" })); }, []);
 
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -68,7 +71,7 @@ export default function BarGoldPage() {
       weightBaht: wb,
       weightGram: isNaN(wg) ? wb * 15.244 : wg,
       amount: a,
-      date: (() => { const d = dayjs(form.date); const now = dayjs(); return (d.isValid() && d.isSame(now, 'day') ? now : d.isValid() ? d : now).toISOString(); })(),
+      date: (() => { const now = dayjs(); if (!dateEdited) return now.toISOString(); const d = dayjs(form.date); return d.isValid() ? d.hour(now.hour()).minute(now.minute()).second(now.second()).toISOString() : now.toISOString(); })(),
     };
     const res = await fetch(`${API_BASE}/bar-gold/create`, {
       method: "POST",
@@ -116,7 +119,7 @@ export default function BarGoldPage() {
     } catch { notify("ดึงข้อมูลบัตรล้มเหลว", "error"); }
   };
 
-  const handleClear = () => clearForm();
+  const handleClear = () => { clearForm(); setDateEdited(false); };
 
   const inputSx = {
     '& .MuiOutlinedInput-root': {
@@ -147,41 +150,6 @@ export default function BarGoldPage() {
           <Typography sx={{ color: G.textMuted, fontSize: 12.5, mt: 0.5, fontFamily: MONO }}>
             {new Date().toLocaleString("th-TH", { dateStyle: 'full', timeStyle: 'short' })}
           </Typography>
-        </Box>
-
-        {/* Live gold price banner */}
-        <Box sx={{ mb: 2.5, p: 1.5, borderRadius: '10px', border: `1px solid ${alpha(G.accent, 0.25)}`,
-          bgcolor: alpha(G.accent, 0.04), display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: priceError ? G.danger : G.success,
-              animation: priceLoading ? undefined : 'pulse 2s infinite',
-              '@keyframes pulse': { '0%,100%': { opacity: 1 }, '50%': { opacity: .4 } } }} />
-            <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textMuted, textTransform: 'uppercase', letterSpacing: '.1em', fontFamily: MONO }}>
-              {priceError ? 'ไม่สามารถดึงราคาได้' : priceLoading ? 'กำลังโหลดราคา...' : `ราคาทอง · ${price?.update_time ?? ''}`}
-            </Typography>
-          </Box>
-          {price && (
-            <Box sx={{ display: 'flex', gap: 2.5, flex: 1, flexWrap: 'wrap' }}>
-              <Box>
-                <Typography sx={{ fontSize: 10, color: G.textMuted }}>แท่ง · รับซื้อ</Typography>
-                <Typography sx={{ fontFamily: MONO, fontWeight: 700, fontSize: 15, color: G.success }}>
-                  ฿{price.price.gold_bar.buy}
-                </Typography>
-              </Box>
-              <Box>
-                <Typography sx={{ fontSize: 10, color: G.textMuted }}>แท่ง · ขายออก</Typography>
-                <Typography sx={{ fontFamily: MONO, fontWeight: 700, fontSize: 15, color: G.danger }}>
-                  ฿{price.price.gold_bar.sell}
-                </Typography>
-              </Box>
-            </Box>
-          )}
-          <Tooltip title="รีเฟรชราคา">
-            <IconButton size="small" onClick={refetch} disabled={priceLoading}
-              sx={{ color: G.textMuted, '&:hover': { color: G.accent } }}>
-              <RefreshIcon sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
         </Box>
 
         {/* Mode selector + Date row */}
@@ -215,9 +183,13 @@ export default function BarGoldPage() {
             <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 1, fontFamily: MONO }}>
               วันที่ทำรายการ
             </Typography>
-            <TextField fullWidth name="date" type="date"
-              value={form.date} onChange={handleChange}
-              InputLabelProps={{ shrink: true }} sx={inputSx} />
+            <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="th">
+              <DatePicker
+                value={form.date && dayjs(form.date).isValid() ? dayjs(form.date) : null}
+                onChange={(v) => { setForm(prev => ({ ...prev, date: v?.isValid() ? v.format('YYYY-MM-DD') : "" })); setDateEdited(!!v?.isValid()); }}
+                slotProps={{ textField: { fullWidth: true, placeholder: 'ใช้เวลาปัจจุบัน', sx: inputSx } }}
+              />
+            </LocalizationProvider>
           </Box>
         </Box>
 
@@ -281,16 +253,16 @@ export default function BarGoldPage() {
           </Grid>
           <Grid item xs={12}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="flex-end">
+              <Button variant="outlined" onClick={handleSave} disabled={saving}
+                sx={{ borderRadius: '10px', borderColor: G.accent, color: G.accent, minHeight: 44, fontWeight: 600,
+                  '&:hover': { bgcolor: alpha(G.accent, 0.08) } }}>
+                {saving ? "กำลังบันทึก..." : "บันทึก"}
+              </Button>
               <Button startIcon={<PrintIcon />} variant="outlined"
                 onClick={() => print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightGram) || 0, amount: parseFloat(form.amount) || 0, goldType: mode === "buy" ? "ขายออก" : "ซื้อเข้า", remark: form.remark })}
                 sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,
                   '&:hover': { borderColor: G.accent, color: G.accent } }}>
                 พิมพ์ใบเสร็จ
-              </Button>
-              <Button variant="outlined" onClick={handleSave} disabled={saving}
-                sx={{ borderRadius: '10px', borderColor: G.accent, color: G.accent, minHeight: 44, fontWeight: 600,
-                  '&:hover': { bgcolor: alpha(G.accent, 0.08) } }}>
-                {saving ? "กำลังบันทึก..." : "บันทึก"}
               </Button>
               <Button variant="contained" onClick={handleSaveAndPrint} disabled={saving}
                 sx={{ borderRadius: '10px', bgcolor: G.accent, minHeight: 44, fontWeight: 600,

@@ -48,9 +48,9 @@ export default function CustomerForm({ values, onChange, onReadCard, onClear, in
       </Grid>
       <Grid item xs={12} md={6}>
         <TextField
-          fullWidth label="เลขบัตรประชาชน" name="idcard" value={values.idcard} onChange={onChange}
+          fullWidth label="เลขบัตรประชาชน / Passport" name="idcard" value={values.idcard} onChange={onChange}
           error={!!idcardError} helperText={idcardError || " "}
-          inputProps={{ maxLength: 13 }} sx={inputSx}
+          inputProps={{ maxLength: 20 }} sx={inputSx}
         />
       </Grid>
       <Grid item xs={12} md={6}>
