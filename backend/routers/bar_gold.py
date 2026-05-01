@@ -5,7 +5,9 @@ from sqlalchemy import desc, asc
 from database import get_db
 from models import BarGold
 from schemas import BarGoldCreate
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+BKK_TZ = timezone(timedelta(hours=7))
 
 router = APIRouter()
 
@@ -26,16 +28,20 @@ def get_bar_gold_transactions(
     db: Session = Depends(get_db)
 ):
     query = db.query(BarGold)
-    today = datetime.today()
+    # คำนวณ "วันนี้" ตามเวลา Bangkok (UTC+7) แล้วแปลงกลับเป็น UTC naive สำหรับเทียบกับ DB
+    now_bkk = datetime.now(BKK_TZ)
 
     if period == "day":
-        start_date = today.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_bkk = now_bkk.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = start_bkk.astimezone(timezone.utc).replace(tzinfo=None)
         query = query.filter(BarGold.date >= start_date)
     elif period == "week":
-        start_date = (today - timedelta(days=today.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_bkk = (now_bkk - timedelta(days=now_bkk.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        start_date = start_bkk.astimezone(timezone.utc).replace(tzinfo=None)
         query = query.filter(BarGold.date >= start_date)
     elif period == "month":
-        start_date = today.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        start_bkk = now_bkk.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        start_date = start_bkk.astimezone(timezone.utc).replace(tzinfo=None)
         query = query.filter(BarGold.date >= start_date)
     elif period == "all":
         pass  # ไม่กรอง ดึงทั้งหมด
