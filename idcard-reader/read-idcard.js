@@ -13,7 +13,14 @@ const api = axios.create({ baseURL: API_BASE, timeout: 5000 });
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 
 const clean = (text) =>
-  text.replace(/ /g, '').replace(/�/g, '').replace(/#+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  text
+    .replace(/\0/g, '')          // ล้างตัว \x00 (Null character)
+    .replace(/ /g, '')           // ลบช่องว่าง (ถ้าต้องการตาม logic เดิมของคุณ)
+    .replace(/\uFFFD/g, '')     // ลบตัวอักษรที่อ่านไม่ออก
+    .replace(/#+/g, ' ')         // เปลี่ยน # เป็นช่องว่าง
+    .replace(/\x00/g, '')        // ล้างตัว \x00 (Null character)
+    .replace(/\s{2,}/g, ' ')     // ยุบช่องว่างที่ซ้อนกัน
+    .trim();
 
 const cleanName = (fullName) => {
   const prefixes = ['นาย', 'นาง', 'นางสาว', 'เด็กชาย', 'เด็กหญิง', 'น.ส.'];
