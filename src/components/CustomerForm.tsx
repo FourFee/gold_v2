@@ -21,8 +21,8 @@ interface Props {
 
 export default function CustomerForm({ values, onChange, onReadCard, onClear, inputSx, actionButtons }: Props) {
   const idcardError = useMemo(() => {
-    const clean = values.idcard.replace(/\D/g, "");
-    if (clean.length === 13 && !validateThaiId(clean)) return "เลขบัตรประชาชนไม่ถูกต้อง";
+    const v = values.idcard.trim();
+    if (/^\d{13}$/.test(v) && !validateThaiId(v)) return "เลขบัตรประชาชนไม่ถูกต้อง";
     return "";
   }, [values.idcard]);
 
