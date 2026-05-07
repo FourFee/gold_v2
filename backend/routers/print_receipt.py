@@ -2,11 +2,14 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
 import socket
+import os
 
 router = APIRouter(prefix="/print", tags=["print"])
 
-PRINTER_IP   = "192.168.1.100"
-PRINTER_PORT = 9100
+PRINTER_IP   = os.environ.get("PRINTER_IP",   "192.168.1.100")
+PRINTER_PORT = int(os.environ.get("PRINTER_PORT", "9100"))
+SHOP_NAME    = os.environ.get("SHOP_NAME",    "ห้างทองจินดา")
+SHOP_PHONE   = os.environ.get("SHOP_PHONE",   "0x-xxxx-xxxx")
 
 TYPE_LABEL = {
     "pawn":     "ใบรับจำนำ",
@@ -40,7 +43,7 @@ def fmt_money(n: float) -> str:
 
 class PrintData(BaseModel):
     type: str
-    shopName:  Optional[str]   = "ห้างทองจินดา"
+    shopName:  Optional[str]   = None  # ถ้าไม่ส่งมา จะใช้ค่าจาก SHOP_NAME ใน .env
     firstname: Optional[str]   = ""
     lastname:  Optional[str]   = ""
     idcard:    Optional[str]   = ""
@@ -56,7 +59,7 @@ class PrintData(BaseModel):
 
 
 def build_escpos(data: PrintData) -> bytes:
-    shop      = data.shopName or "ห้างทองจินดา"
+    shop      = data.shopName or SHOP_NAME
     fullname  = f"{data.firstname or ''} {data.lastname or ''}".strip() or "-"
     type_lbl  = TYPE_LABEL.get(data.type, "ใบเสร็จ")
 
@@ -66,7 +69,7 @@ def build_escpos(data: PrintData) -> bytes:
     buf += CENTER + BOLD_ON + SIZE_2X
     buf += th(shop) + LF
     buf += SIZE_NORM + BOLD_OFF
-    buf += th(f"โทร 0x-xxxx-xxxx") + LF
+    buf += th(f"โทร {SHOP_PHONE}") + LF
 
     buf += SEP
 
@@ -122,7 +125,7 @@ def build_escpos(data: PrintData) -> bytes:
     # ── Footer ────────────────────────────────
     buf += CENTER
     buf += th("ขอบคุณที่ใช้บริการ") + LF
-    buf += th(shop) + LF
+    buf += th(shop) + LF  # ใช้ shop ที่อ่านจาก env หรือที่ส่งมาจาก request
 
     buf += LF + LF + LF
     buf += CUT

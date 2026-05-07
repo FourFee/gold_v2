@@ -15,6 +15,8 @@ import SwapHorizOutlinedIcon    from "@mui/icons-material/SwapHorizOutlined";
 import DashboardOutlinedIcon    from "@mui/icons-material/DashboardOutlined";
 import FormatListBulletedIcon   from "@mui/icons-material/FormatListBulleted";
 import HistoryIcon              from "@mui/icons-material/History";
+import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import StorefrontOutlinedIcon   from "@mui/icons-material/StorefrontOutlined";
 import { ColorModeContext } from "../layout/ThemeContext";
 import { makeG } from "../utils/dashboardTokens";
 
@@ -37,6 +39,7 @@ const NAV = [
       { label: 'ธุรกรรมทองทั้งหมด', path: '/all-transactions-create', Icon: ReceiptLongOutlinedIcon },
       { label: 'จำนำทอง',           path: '/pawn',                    Icon: HandshakeOutlinedIcon   },
       { label: 'แลกเปลี่ยนทองแท่ง', path: '/bar-gold-exchange',       Icon: SwapHorizOutlinedIcon   },
+      { label: 'หยิบทองจากร้านส่ง', path: '/wholesaler-pickup',       Icon: LocalShippingOutlinedIcon },
     ],
   },
   {
@@ -46,6 +49,7 @@ const NAV = [
       { label: 'รายการทองรูปพรรณ',   path: '/ornament-list',           Icon: FormatListBulletedIcon  },
       { label: 'รายการธุรกรรม',       path: '/all-transactions-list',   Icon: FormatListBulletedIcon  },
       { label: 'รายการจำนำ',          path: '/pawn-list',               Icon: FormatListBulletedIcon  },
+      { label: 'รายการหยิบจากร้านส่ง', path: '/wholesaler-pickup-list', Icon: StorefrontOutlinedIcon },
       { label: 'ประวัติแลกเปลี่ยน',  path: '/bar-gold-exchange-history', Icon: HistoryIcon            },
     ],
   },

@@ -67,8 +67,8 @@ def get_summary(
 
         bar_buy_transactions  = [t for t in bar_transactions_period if t.mode == "sell"]
         bar_sell_transactions = [t for t in bar_transactions_period if t.mode == "buy"]
-        bar_buy_total_weight  = sum(t.weightBaht or 0.0 for t in bar_buy_transactions) * 15.24
-        bar_sell_total_weight = sum(t.weightBaht or 0.0 for t in bar_sell_transactions) * 15.24
+        bar_buy_total_weight  = sum(t.weightBaht or 0.0 for t in bar_buy_transactions) * 15.244
+        bar_sell_total_weight = sum(t.weightBaht or 0.0 for t in bar_sell_transactions) * 15.244
         bar_buy_amount        = sum(t.amount or 0.0 for t in bar_buy_transactions)
         bar_sell_amount       = sum(t.amount or 0.0 for t in bar_sell_transactions)
         total_bar_buy_baht    = sum(t.weightBaht or 0.0 for t in bar_buy_transactions)
@@ -176,8 +176,8 @@ def get_summary(
     bar_buy_transactions = [t for t in bar_transactions_period if t.mode == "sell"]
     bar_sell_transactions = [t for t in bar_transactions_period if t.mode == "buy"]
     
-    bar_buy_total_weight = sum(t.weightBaht or 0.0 for t in bar_buy_transactions) * 15.24
-    bar_sell_total_weight = sum(t.weightBaht or 0.0 for t in bar_sell_transactions) * 15.24
+    bar_buy_total_weight = sum(t.weightBaht or 0.0 for t in bar_buy_transactions) * 15.244
+    bar_sell_total_weight = sum(t.weightBaht or 0.0 for t in bar_sell_transactions) * 15.244
     
     # ✅ แก้ไข: ใช้ฟิลด์ amount แทน (จำนวนเงินบาท)
     bar_buy_amount = sum(t.amount or 0.0 for t in bar_buy_transactions)  # ทองแท่งซื้อเข้า
@@ -275,8 +275,8 @@ def get_all_transactions_graph_data(
             agg[k]["gold_out"]     += (t.sellOut or 0.0) + (t.exchange or 0.0)
         for b in bar_transactions:
             k = b.date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            if b.mode == "sell": agg[k]["bar_buy"]  += (b.weightBaht or 0.0) * 15.24
-            elif b.mode == "buy": agg[k]["bar_sell"] += (b.weightBaht or 0.0) * 15.24
+            if b.mode == "sell": agg[k]["bar_buy"]  += (b.weightBaht or 0.0) * 15.244
+            elif b.mode == "buy": agg[k]["bar_sell"] += (b.weightBaht or 0.0) * 15.244
         for k in agg:
             agg[k]["total_pawn_flow"] = agg[k]["redeem"] - agg[k]["pawn"]
             agg[k]["total_gold_flow"] = (agg[k]["buyIn"] + agg[k]["bar_buy"]) - (agg[k]["sellOut"] + agg[k]["bar_sell"])
@@ -374,9 +374,9 @@ def get_all_transactions_graph_data(
     for b in bar_transactions:
         key = get_sortable_period_key(b.date, period)
         if b.mode == "sell":  # ซื้อเข้า (ลูกค้าขายให้ร้าน)
-            raw_aggregated_data[key]["bar_buy"] += (b.weightBaht or 0.0) * 15.24
+            raw_aggregated_data[key]["bar_buy"] += (b.weightBaht or 0.0) * 15.244
         elif b.mode == "buy":  # ขายออก (ร้านขายให้ลูกค้า)
-            raw_aggregated_data[key]["bar_sell"] += (b.weightBaht or 0.0) * 15.24
+            raw_aggregated_data[key]["bar_sell"] += (b.weightBaht or 0.0) * 15.244
 
     # คำนวณ total_pawn_flow และ total_gold_flow
     for key in raw_aggregated_data:
@@ -474,7 +474,7 @@ def get_bar_gold_stock(db: Session = Depends(get_db)):
     ).scalar() or 0.0
 
     remaining_baht = total_sell_weight - total_buy_weight - exchange_weight
-    remaining_grams = remaining_baht * 15.24
+    remaining_grams = remaining_baht * 15.244
 
     if remaining_baht < 4:
         remaining_baht = 0.0

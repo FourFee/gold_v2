@@ -70,6 +70,37 @@ export interface ChartEntry {
   bar_buy_baht: number; bar_sell_baht: number;
 }
 
+export interface Wholesaler {
+  id: number;
+  name: string;
+  phone: string;
+  address: string;
+  note: string;
+  active: boolean;
+}
+
+export interface WholesalerPickupRecord {
+  id: number;
+  wholesaler_id: number;
+  wholesaler_name: string;
+  pickup_date: string;
+  weight_baht: number;
+  weight_gram: number;
+  bar_used_baht: number;
+  making_fee: number;
+  remark: string;
+}
+
+export interface WholesalerSummaryItem {
+  wholesaler_id: number;
+  wholesaler_name: string;
+  count: number;
+  weight_baht_sum: number;
+  bar_used_baht_sum: number;
+  making_fee_sum: number;
+  last_pickup_date: string | null;
+}
+
 export interface AllGoldTransactionRecord {
   id: number;
   date: string;

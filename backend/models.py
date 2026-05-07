@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Float, Enum
+from sqlalchemy import Column, Integer, String, Float, Enum, ForeignKey, Boolean
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import relationship
 from sqlalchemy import DateTime
 from datetime import datetime, timezone
 
@@ -68,4 +69,31 @@ class AllGoldTransaction(Base):
     diamondBuyIn = Column(Float, default=0.0)   # ✅ เปลี่ยนจาก diamond_buy_in เป็น diamondBuyIn
     diamondSellOut = Column(Float, default=0.0) # ✅ เปลี่ยนจาก diamond_sell_out เป็น diamondSellOut
     platedGold = Column(Float, default=0.0)     # ✅ เปลี่ยนจาก plated_gold เป็น platedGold
-    
+
+
+class Wholesaler(Base):
+    __tablename__ = "wholesalers"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False, index=True)
+    phone = Column(String, default="")
+    address = Column(String, default="")
+    note = Column(String, default="")
+    active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    pickups = relationship("WholesalerPickup", back_populates="wholesaler")
+
+
+class WholesalerPickup(Base):
+    __tablename__ = "wholesaler_pickups"
+    id = Column(Integer, primary_key=True, index=True)
+    wholesaler_id = Column(Integer, ForeignKey("wholesalers.id"), nullable=False, index=True)
+    pickup_date = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    weight_baht = Column(Float, nullable=False)
+    weight_gram = Column(Float, default=0.0)
+    bar_used_baht = Column(Float, default=0.0)
+    making_fee = Column(Float, default=0.0)
+    remark = Column(String, default="")
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    wholesaler = relationship("Wholesaler", back_populates="pickups")

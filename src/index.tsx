@@ -17,6 +17,8 @@ import AllGoldTransactionsList from './pages/AllGoldTransactionsList';
 import AllGoldTransactionsPage from './pages/AllGoldTransactionsPage';
 import BarGoldExchange from "./pages/BarGoldExchange";
 import BarGoldExchangeHistory from "./pages/BarGoldExchangeHistory";
+import WholesalerPickupPage from "./pages/WholesalerPickupPage";
+import WholesalerPickupList from "./pages/WholesalerPickupList";
 
 import ThemeContextProvider from "./layout/ThemeContext";
 
@@ -37,8 +39,10 @@ root.render(
               <Route path="bar-list" element={<BarGoldList />} />
               <Route path="ornament-list" element={<OrnamentGoldList />} />
               <Route path="all-transactions-list" element={<AllGoldTransactionsList />} />
-              <Route path="/bar-gold-exchange" element={<BarGoldExchange />} /> 
+              <Route path="/bar-gold-exchange" element={<BarGoldExchange />} />
               <Route path="/bar-gold-exchange-history" element={<BarGoldExchangeHistory />} />
+              <Route path="/wholesaler-pickup" element={<WholesalerPickupPage />} />
+              <Route path="/wholesaler-pickup-list" element={<WholesalerPickupList />} />
             </Route>
           </Routes>
         </BrowserRouter>

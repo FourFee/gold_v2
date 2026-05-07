@@ -1,5 +1,5 @@
 // src/hooks/useNotify.ts
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 export function useNotify() {
   const [snackbar, setSnackbar] = useState<{
@@ -8,11 +8,13 @@ export function useNotify() {
     severity: "success" | "error" | "warning" | "info";
   }>({ open: false, message: "", severity: "success" });
 
-  const notify = (message: string, severity: "success" | "error" = "success") => {
+  const notify = useCallback((message: string, severity: "success" | "error" = "success") => {
     setSnackbar({ open: true, message, severity });
-  };
+  }, []);
 
-  const handleClose = () => setSnackbar(prev => ({ ...prev, open: false }));
+  const handleClose = useCallback(() => {
+    setSnackbar(prev => ({ ...prev, open: false }));
+  }, []);
 
   return { snackbar, notify, handleClose };
 }

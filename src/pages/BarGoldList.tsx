@@ -6,7 +6,7 @@ import {
   Skeleton, InputAdornment, Tooltip,
 } from "@mui/material";
 import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
-import { Edit, Save, Delete, Search as SearchIcon, TrendingUp, TrendingDown, Refresh } from "@mui/icons-material";
+import { Edit, Save, Delete, Search as SearchIcon, TrendingUp, TrendingDown, Refresh, Add } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import dayjs, { Dayjs } from 'dayjs';
@@ -78,7 +78,7 @@ export default function BarGoldList() {
     } finally {
       setLoading(false);
     }
-  }, [API, selectedPeriod]);
+  }, [API, selectedPeriod, notify]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -205,6 +205,13 @@ export default function BarGoldList() {
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Button size="small" startIcon={<Add sx={{ fontSize: 15 }} />}
+            onClick={() => navigate('/bar')}
+            sx={{ color: '#fff', bgcolor: G.accent, borderRadius: '8px',
+              fontWeight: 600, fontSize: 13, px: 2,
+              '&:hover': { bgcolor: alpha(G.accent, 0.85) } }}>
+            เพิ่มรายการ
+          </Button>
           <Button size="small" startIcon={<Refresh sx={{ fontSize: 15 }} />} onClick={fetchData}
             sx={{ color: G.textSub, border: `1px solid ${G.border}`, borderRadius: '8px',
               bgcolor: G.paper, fontWeight: 500, fontSize: 13, px: 2,

@@ -1,5 +1,6 @@
 // src/pages/OrnamentGoldList.tsx
 import { useEffect, useState, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
 import {
   Box, Paper, Typography, Table, TableHead, TableRow, TableCell, TableBody,
@@ -7,7 +8,7 @@ import {
   InputAdornment, Tooltip, Button, Grid, alpha,
 } from "@mui/material";
 import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
-import { Delete, Edit, Save, Search as SearchIcon, TrendingUp, TrendingDown, Refresh } from "@mui/icons-material";
+import { Delete, Edit, Save, Search as SearchIcon, TrendingUp, TrendingDown, Refresh, Add } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { Snackbar, Alert } from "@mui/material";
 import { API_BASE } from "../config";
@@ -33,6 +34,7 @@ const MODES = [
 export default function OrnamentGoldList() {
   const theme = useTheme();
   const G = makeG(theme);
+  const navigate = useNavigate();
   const { snackbar, notify, handleClose } = useNotify();
 
   const [data, setData]             = useState<OrnamentGoldRecord[]>([]);
@@ -59,7 +61,7 @@ export default function OrnamentGoldList() {
       setPage(0);
     } catch { notify("โหลดข้อมูลไม่สำเร็จ", "error"); }
     finally   { setIsLoading(false); }
-  }, [API]);
+  }, [API, notify]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -162,12 +164,21 @@ export default function OrnamentGoldList() {
             จัดการธุรกรรมทองรูปพรรณทั้งหมด · {filteredData.length} รายการ
           </Typography>
         </Box>
-        <Button size="small" startIcon={<Refresh sx={{ fontSize: 15 }} />} onClick={fetchData}
-          sx={{ color: G.textSub, border: `1px solid ${G.border}`, borderRadius: '8px',
-            bgcolor: G.paper, fontWeight: 500, fontSize: 13, px: 2,
-            '&:hover': { bgcolor: G.bg, borderColor: G.accent, color: G.accent } }}>
-          รีเฟรช
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1.5 }}>
+          <Button size="small" startIcon={<Add sx={{ fontSize: 15 }} />}
+            onClick={() => navigate('/ornament')}
+            sx={{ color: '#fff', bgcolor: G.accent, borderRadius: '8px',
+              fontWeight: 600, fontSize: 13, px: 2,
+              '&:hover': { bgcolor: alpha(G.accent, 0.85) } }}>
+            เพิ่มรายการ
+          </Button>
+          <Button size="small" startIcon={<Refresh sx={{ fontSize: 15 }} />} onClick={fetchData}
+            sx={{ color: G.textSub, border: `1px solid ${G.border}`, borderRadius: '8px',
+              bgcolor: G.paper, fontWeight: 500, fontSize: 13, px: 2,
+              '&:hover': { bgcolor: G.bg, borderColor: G.accent, color: G.accent } }}>
+            รีเฟรช
+          </Button>
+        </Box>
       </Box>
 
       {/* Stats */}
