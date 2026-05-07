@@ -248,7 +248,7 @@ export default function Dashboard() {
         {/* ── Hero row (profit + live price) ── */}
         <Grid container spacing={2} sx={{ mb: 2.5 }}>
           {/* Profit card */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={7}>
             {isLoading ? <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3 }} /> : (
               <Card sx={{ ...cardSx, height: '100%' }}>
                 <CardContent sx={{ p: { xs: 3, md: 3.5 } }}>
@@ -316,7 +316,7 @@ export default function Dashboard() {
           </Grid>
 
           {/* Avg price card */}
-          <Grid item xs={12} md={6}>
+          <Grid item xs={12} md={5}>
             {isLoading ? <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3 }} /> : (
               <Card sx={{ ...cardSx, height: '100%' }}>
                 <CardContent sx={{ p: 2.5 }}>
