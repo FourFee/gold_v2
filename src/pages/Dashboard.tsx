@@ -411,6 +411,9 @@ export default function Dashboard() {
           </>}
         </Grid>
 
+        {/* ── Detail groups ── */}
+        <DetailCards summary={summary} calc={calc} isLoading={isLoading} />
+
         {/* ── Transaction chart ── */}
         <TransactionChart
           chartData={chartData}
@@ -419,9 +422,6 @@ export default function Dashboard() {
           period={period}
           isLoading={isLoading}
         />
-
-        {/* ── Detail groups ── */}
-        <DetailCards summary={summary} calc={calc} isLoading={isLoading} />
 
         {/* ── Quick links ── */}
         <Box sx={{ mt: 1 }}>
