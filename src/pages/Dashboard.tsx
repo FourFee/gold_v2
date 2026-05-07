@@ -176,21 +176,67 @@ export default function Dashboard() {
 
   const stockBaht  = barGoldStock ? barGoldStock.remaining_grams / GOLD_BAHT_TO_GRAM_BAR : 0;
 
-  const cardSx = { borderRadius: 3, border: `1px solid ${G.border}`, boxShadow: '0 1px 0 rgba(27,23,19,.04),0 8px 24px -14px rgba(27,23,19,.14)', bgcolor: G.paper };
+  const cardSx = {
+    borderRadius: 3,
+    border: `1px solid ${G.border}`,
+    boxShadow: '0 1px 0 rgba(27,23,19,.04),0 8px 24px -14px rgba(27,23,19,.14)',
+    bgcolor: G.paper,
+    transition: 'border-color .2s, transform .2s, box-shadow .2s',
+    '&:hover': {
+      borderColor: alpha(G.accent, 0.4),
+      transform: 'translateY(-2px)',
+      boxShadow: `0 1px 0 rgba(27,23,19,.04), 0 12px 28px -14px ${alpha(G.accent, 0.25)}`,
+    },
+  };
+
+  const SectionDivider = ({ label, en }: { label: string; en: string }) => (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, my: 4 }}>
+      <Box sx={{ flex: 1, height: '1px', bgcolor: G.border }} />
+      <Box sx={{ color: G.accent, fontSize: 11, lineHeight: 1 }}>❖</Box>
+      <Box sx={{ textAlign: 'center' }}>
+        <Typography sx={{ fontFamily: SERIF, fontSize: 14, fontWeight: 500, color: G.text, lineHeight: 1.1 }}>
+          {label}
+        </Typography>
+        <Typography sx={{ fontFamily: MONO, fontSize: 9.5, color: G.textMuted, letterSpacing: '.2em', mt: 0.25 }}>
+          {en}
+        </Typography>
+      </Box>
+      <Box sx={{ color: G.accent, fontSize: 11, lineHeight: 1 }}>❖</Box>
+      <Box sx={{ flex: 1, height: '1px', bgcolor: G.border }} />
+    </Box>
+  );
 
   return (
     <LocalizationProvider dateAdapter={AdapterDayjs}>
-      <Box sx={{ bgcolor: G.bg, minHeight: '100vh', p: { xs: 2, sm: 3, md: 4 }, maxWidth: 1560, mx: 'auto' }}>
+      <Box sx={{
+        bgcolor: G.bg,
+        backgroundImage: `radial-gradient(ellipse 90% 50% at 50% -10%, ${alpha(G.accent, 0.06)}, transparent 70%)`,
+        minHeight: '100vh',
+        p: { xs: 2, sm: 3, md: 4 },
+        maxWidth: 1560, mx: 'auto',
+        fontVariantNumeric: 'tabular-nums',
+      }}>
 
-        {/* ── Section header ── */}
-        <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+        {/* ── Editorial Section header ── */}
+        <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2, mb: 4 }}>
           <Box>
-            <Typography sx={{ fontSize: 18, fontWeight: 600, color: G.text, letterSpacing: '-.01em', display: 'flex', alignItems: 'center', gap: 1,
-              '&::before': { content: '""', width: 4, height: 20, bgcolor: G.accent, borderRadius: 1, display: 'inline-block' } }}>
+            <Typography sx={{
+              fontFamily: SERIF, fontWeight: 500,
+              fontSize: { xs: 28, md: 36 }, lineHeight: 1.05,
+              color: G.text, letterSpacing: '-.02em',
+            }}>
               ภาพรวมธุรกิจ
             </Typography>
-            <Typography sx={{ color: G.textMuted, fontSize: 12.5, mt: 0.5 }}>
-              ช่วงข้อมูลสรุป · <strong style={{ color: G.textSub }}>{periodLabel}</strong>{period !== 'all' && ` · กราฟ${period === 'week' ? '5 สัปดาห์' : period === 'month' ? '6 เดือน' : '1 วัน'}ย้อนหลัง`}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, mt: 1, mb: 0.75 }}>
+              <Box sx={{ width: 36, height: '1px', bgcolor: G.accent }} />
+              <Box sx={{ color: G.accent, fontSize: 10, lineHeight: 1 }}>◆</Box>
+              <Box sx={{ flex: 1, height: '1px', bgcolor: G.border, maxWidth: 120 }} />
+            </Box>
+            <Typography sx={{
+              color: G.textMuted, fontSize: 11, fontFamily: MONO,
+              textTransform: 'uppercase', letterSpacing: '.18em',
+            }}>
+              {periodLabel}{period !== 'all' && ` · ${period === 'week' ? 'WEEKLY' : period === 'month' ? 'MONTHLY' : 'DAILY'} REPORT`}
             </Typography>
           </Box>
           <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -266,7 +312,13 @@ export default function Dashboard() {
                   <Typography component="h1"
                     sx={{ fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(20px,2.4vw,30px)', lineHeight: 1.2, mb: 1.5, color: G.text }}>
                     กำไรจากทองแท่ง{periodText}{' '}
-                    <Box component="em" sx={{ fontStyle: 'italic', color: profitPos ? G.success : G.danger, fontWeight: 600, fontFamily: MONO }}>
+                    <Box component="em" sx={{
+                      fontStyle: 'italic', color: profitPos ? G.success : G.danger,
+                      fontWeight: 500, fontFamily: SERIF,
+                      fontSize: 'clamp(32px, 4vw, 48px)',
+                      letterSpacing: '-.02em',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}>
                       ฿&thinsp;{fmt(barProfit)}
                     </Box>
                   </Typography>
@@ -367,8 +419,14 @@ export default function Dashboard() {
               <Card sx={{ ...cardSx, height: '100%' }}>
                 <CardContent sx={{ p: { xs: 2.25, sm: 2.75 } }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ยอดกำไรสุทธิ</Typography>
-                  <Typography sx={{ fontFamily: MONO, fontSize: 'clamp(26px,3vw,34px)', fontWeight: 600,
-                    color: profitPos ? G.success : G.danger, letterSpacing: '-.015em', mt: 1.25, mb: 0.75 }}>
+                  <Typography sx={{
+                    fontFamily: SERIF, fontStyle: 'italic',
+                    fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 500,
+                    color: profitPos ? G.success : G.danger,
+                    letterSpacing: '-.02em', lineHeight: 1.05,
+                    fontVariantNumeric: 'tabular-nums',
+                    mt: 1.25, mb: 0.75,
+                  }}>
                     ฿&thinsp;{fmt(calc?.profit || 0)}
                   </Typography>
                   <Typography sx={{ color: G.textMuted, fontSize: 12 }}>
@@ -383,8 +441,14 @@ export default function Dashboard() {
               <Card sx={{ ...cardSx, height: '100%' }}>
                 <CardContent sx={{ p: { xs: 2.25, sm: 2.75 } }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ทองในสต็อก (ทองแท่ง)</Typography>
-                  <Typography sx={{ fontFamily: MONO, fontSize: 'clamp(26px,3vw,34px)', fontWeight: 600, color: G.brass, letterSpacing: '-.015em', mt: 1.25, mb: 0.75 }}>
-                    {fmtD(stockBaht)}&thinsp;<Box component="span" sx={{ fontSize: 14, color: G.textMuted, fontWeight: 500 }}>บาท</Box>
+                  <Typography sx={{
+                    fontFamily: SERIF, fontStyle: 'italic',
+                    fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 500,
+                    color: G.brass, letterSpacing: '-.02em', lineHeight: 1.05,
+                    fontVariantNumeric: 'tabular-nums',
+                    mt: 1.25, mb: 0.75,
+                  }}>
+                    {fmtD(stockBaht)}&thinsp;<Box component="span" sx={{ fontSize: 14, color: G.textMuted, fontWeight: 500, fontStyle: 'normal', fontFamily: 'inherit' }}>บาท</Box>
                   </Typography>
                   <Typography sx={{ color: G.textMuted, fontSize: 12 }}>
                     ≈ {fmtD(barGoldStock?.remaining_grams || 0)} ก · เข้า <Box component="span" sx={{ color: G.success, fontFamily: MONO }}>+{fmtD((summary?.bar_buy||0)/GOLD_BAHT_TO_GRAM_BAR)}</Box> · ออก <Box component="span" sx={{ color: G.danger, fontFamily: MONO }}>−{fmtD((summary?.bar_sell||0)/GOLD_BAHT_TO_GRAM_BAR)}</Box>
@@ -398,8 +462,13 @@ export default function Dashboard() {
               <Card sx={{ ...cardSx, height: '100%' }}>
                 <CardContent sx={{ p: { xs: 2.25, sm: 2.75 } }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ดอกเบี้ยจำนำ</Typography>
-                  <Typography sx={{ fontFamily: MONO, fontSize: 'clamp(26px,3vw,34px)', fontWeight: 600,
-                    color: G.success, letterSpacing: '-.015em', mt: 1.25, mb: 0.75 }}>
+                  <Typography sx={{
+                    fontFamily: SERIF, fontStyle: 'italic',
+                    fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 500,
+                    color: G.success, letterSpacing: '-.02em', lineHeight: 1.05,
+                    fontVariantNumeric: 'tabular-nums',
+                    mt: 1.25, mb: 0.75,
+                  }}>
                     ฿&thinsp;{fmt(summary?.interest || 0)}
                   </Typography>
                   <Typography sx={{ color: G.textMuted, fontSize: 12 }}>
@@ -411,8 +480,12 @@ export default function Dashboard() {
           </>}
         </Grid>
 
+        <SectionDivider label="สรุปธุรกรรม" en="DETAIL · BREAKDOWN" />
+
         {/* ── Detail groups ── */}
         <DetailCards summary={summary} calc={calc} isLoading={isLoading} />
+
+        <SectionDivider label="แนวโน้ม" en="TREND · CHART" />
 
         {/* ── Transaction chart ── */}
         <TransactionChart
@@ -422,6 +495,8 @@ export default function Dashboard() {
           period={period}
           isLoading={isLoading}
         />
+
+        <SectionDivider label="รายการ" en="LISTS · NAVIGATE" />
 
         {/* ── Quick links ── */}
         <Box sx={{ mt: 1 }}>
