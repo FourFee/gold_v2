@@ -15,6 +15,8 @@ import localizedFormat from 'dayjs/plugin/localizedFormat';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 
+import TrendingUpIcon    from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon  from '@mui/icons-material/TrendingDown';
 import ChevronLeftIcon   from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon  from '@mui/icons-material/ChevronRight';
 
@@ -53,6 +55,7 @@ const MONTHS = ['มกราคม','กุมภาพันธ์','มีน
                 'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
+const SERIF = '"Fraunces", serif';
 
 function CardSkeleton() {
   const theme = useTheme();
@@ -168,6 +171,9 @@ export default function Dashboard() {
   })), [graphData]);
 
   const navigate = useNavigate();
+  const hour       = dayjs().hour();
+  const greeting   = hour < 12 ? 'สวัสดีตอนเช้า' : hour < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
+  const periodText = period === 'all' ? 'ทั้งหมด' : period === 'month' ? 'เดือนนี้' : period === 'week' ? 'สัปดาห์นี้' : 'วันนี้';
   const profitPos  = (calc?.profit  || 0) >= 0;
 
   const stockBaht  = barGoldStock ? barGoldStock.remaining_grams / GOLD_BAHT_TO_GRAM_BAR : 0;
@@ -241,75 +247,203 @@ export default function Dashboard() {
           </Box>
         </Box>
 
-        {/* ── Flat KPI grid: ทองแท่ง (4) + ธุรกรรม (4) ── */}
-        {(() => {
-          const sellBaht  = (summary?.bar_sell || 0) / GOLD_BAHT_TO_GRAM_BAR;
-          const buyBaht   = (summary?.bar_buy  || 0) / GOLD_BAHT_TO_GRAM_BAR;
-          const avgSell   = summary?.avg_bar_sell_price_per_baht || 0;
-          const avgBuy    = summary?.avg_bar_buy_price_per_baht  || 0;
-          const barProfit = (avgSell - avgBuy) * sellBaht;
-          const buyExGram = (summary?.buyIn || 0) + (summary?.exchange || 0);
-          const sellGram  = summary?.sellOut || 0;
+        {/* ── Hero row (profit + live price) ── */}
+        <Grid container spacing={2} sx={{ mb: 2.5 }}>
+          {/* Profit card */}
+          <Grid item xs={12} md={7}>
+            {isLoading ? <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3 }} /> : (
+              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden' }}>
+                <Box sx={{ position: 'absolute', right: -40, bottom: -40, width: 260, height: 260,
+                  background: `radial-gradient(closest-side, ${alpha(G.accent, 0.22)}, transparent 70%)`,
+                  filter: 'blur(2px)', pointerEvents: 'none' }} />
+                <CardContent sx={{ p: { xs: 3, md: 3.5 }, position: 'relative' }}>
+                  <Typography sx={{ color: G.textMuted, fontSize: 13, mb: 1 }}>
+                    {greeting} · วัน{dayjs().format('dddd')}ที่ {dayjs().format('D')} {dayjs().format('MMMM')} {dayjs().year() + 543}
+                  </Typography>
+                  {(() => {
+                    const sellBaht   = (summary?.bar_sell || 0) / GOLD_BAHT_TO_GRAM_BAR;
+                    const avgSell    = summary?.avg_bar_sell_price_per_baht || 0;
+                    const avgBuy     = summary?.avg_bar_buy_price_per_baht  || 0;
+                    const barProfit  = (avgSell - avgBuy) * sellBaht;
+                    const barMargin  = avgSell > 0 ? ((avgSell - avgBuy) / avgSell * 100) : 0;
+                    const profitPos  = barProfit >= 0;
+                    return (<>
+                  <Typography component="h1"
+                    sx={{ fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(20px,2.4vw,30px)', lineHeight: 1.2, mb: 1.5, color: G.text }}>
+                    กำไรจากทองแท่ง{periodText}{' '}
+                    <Box component="em" sx={{ fontStyle: 'italic', color: profitPos ? G.success : G.danger, fontWeight: 600, fontFamily: MONO }}>
+                      ฿&thinsp;{fmt(barProfit)}
+                    </Box>
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', fontSize: 12.5, color: G.textMuted, mb: 2 }}>
+                    {[
+                      { label: `สเปรด ฿${fmt(avgSell - avgBuy)}/บาท` },
+                      { label: `ขายออก ${fmtD(sellBaht)} บาทน้ำหนัก` },
+                      { label: `มาร์จิน ${barMargin.toFixed(2)}%` },
+                    ].map(x => (
+                      <Box key={x.label} sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                        <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: G.accent }} />
+                        <span>{x.label}</span>
+                      </Box>
+                    ))}
+                  </Box>
 
-          const sectionLabelSx = {
-            fontSize: 11, fontWeight: 700, color: G.textFaint,
-            textTransform: 'uppercase' as const, letterSpacing: '.1em',
-            fontFamily: MONO, mb: 1.5, mt: 0.5,
-            display: 'flex', alignItems: 'center', gap: 1,
-            '&::before': { content: '""', width: 3, height: 14, bgcolor: G.accent, borderRadius: 1 },
-          };
+                  {/* น้ำหนักบาท + ค่าเฉลี่ย */}
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5,
+                    p: 1.5, borderRadius: '10px', border: `1px solid ${G.border}`, bgcolor: alpha(G.accent, 0.04) }}>
+                    {(() => {
+                      const buyBaht  = (summary?.bar_buy  || 0) / GOLD_BAHT_TO_GRAM_BAR;
+                      const sellBaht = (summary?.bar_sell || 0) / GOLD_BAHT_TO_GRAM_BAR;
+                      return [
+                        { label: 'ทองแท่งซื้อเข้า', val: buyBaht,  color: G.success, avgPrice: summary?.avg_bar_buy_price_per_baht  || 0 },
+                        { label: 'ทองแท่งขายออก',   val: sellBaht, color: G.danger,  avgPrice: summary?.avg_bar_sell_price_per_baht || 0 },
+                      ].map(x => (
+                        <Box key={x.label} sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                          <Box sx={{ width: 8, height: 8, borderRadius: '2px', bgcolor: x.color, flexShrink: 0 }} />
+                          <Box>
+                            <Typography sx={{ fontSize: 11, color: G.textMuted, lineHeight: 1.2 }}>{x.label}</Typography>
+                            <Typography sx={{ fontFamily: MONO, fontSize: 16, fontWeight: 600, color: G.text, lineHeight: 1.2 }}>
+                              {fmtD(x.val)} <Box component="span" sx={{ fontSize: 11, color: G.textMuted, fontWeight: 500 }}>บาท</Box>
+                            </Typography>
+                            <Typography sx={{ fontFamily: MONO, fontSize: 11, color: x.color, mt: 0.25 }}>
+                              {x.avgPrice > 0 ? <>฿{fmt(x.avgPrice)}<Box component="span" sx={{ color: G.textMuted, fontWeight: 400 }}>/บาท</Box></> : '—'}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      ));
+                    })()}
+                  </Box>
+                    </>);
+                  })()}
+                </CardContent>
+              </Card>
+            )}
+          </Grid>
 
-          const StatCard = ({ label, value, color, sub }: { label: string; value: string; color: string; sub?: string }) => (
-            <Card sx={cardSx}>
-              <CardContent sx={{ p: { xs: 2.25, sm: 2.5 } }}>
-                <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textMuted, textTransform: 'uppercase', letterSpacing: '.1em', mb: 1.25 }}>
-                  {label}
-                </Typography>
-                <Typography sx={{ fontFamily: MONO, fontSize: { xs: 22, sm: 26 }, fontWeight: 600, color, letterSpacing: '-.015em', lineHeight: 1.1 }}>
-                  {value}
-                </Typography>
-                {sub && (
-                  <Typography sx={{ color: G.textMuted, fontSize: 12, mt: 1, lineHeight: 1.4 }}>{sub}</Typography>
-                )}
-              </CardContent>
-            </Card>
-          );
-
-          const barCards = [
-            { label: 'กำไรทองแท่ง', value: `฿${fmt(barProfit)}`, color: barProfit >= 0 ? G.success : G.danger, sub: `สเปรด ฿${fmt(avgSell - avgBuy)}/บาท` },
-            { label: 'สต็อกทองแท่ง', value: `${fmtD(stockBaht)} บาท`, color: G.brass, sub: `≈ ${fmtD(barGoldStock?.remaining_grams || 0)} กรัม` },
-            { label: 'ทองแท่งซื้อเข้า', value: `${fmtD(buyBaht)} บาท`, color: G.success, sub: avgBuy > 0 ? `เฉลี่ย ฿${fmt(avgBuy)}/บาท` : '—' },
-            { label: 'ทองแท่งขายออก', value: `${fmtD(sellBaht)} บาท`, color: G.danger, sub: avgSell > 0 ? `เฉลี่ย ฿${fmt(avgSell)}/บาท` : '—' },
-          ];
-          const allCards = [
-            { label: 'กำไรสุทธิ', value: `฿${fmt(calc?.profit || 0)}`, color: profitPos ? G.success : G.danger, sub: `มาร์จิน ${(calc?.margin || 0).toFixed(1)}%` },
-            { label: 'ดอกเบี้ยจำนำ', value: `฿${fmt(summary?.interest || 0)}`, color: G.success, sub: `ไถ่ ฿${fmt(summary?.redeem || 0)} · จำนำ ฿${fmt(summary?.pawn || 0)}` },
-            { label: 'ทองซื้อ+เปลี่ยน', value: `${fmtD(buyExGram)} ก`, color: G.accent, sub: `≈ ${fmtD(buyExGram / GOLD_BAHT_TO_GRAM_BAR)} บาท` },
-            { label: 'ทองขายออก', value: `${fmtD(sellGram)} ก`, color: G.danger, sub: `≈ ${fmtD(sellGram / GOLD_BAHT_TO_GRAM_BAR)} บาท` },
-          ];
-
-          return (
-            <>
-              <Typography sx={sectionLabelSx}>ทองแท่ง</Typography>
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                {(isLoading ? Array(4).fill(null) : barCards).map((c, i) => (
-                  <Grid item xs={6} md={3} key={i}>
-                    {isLoading ? <CardSkeleton /> : <StatCard {...c!} />}
+          {/* Avg price card */}
+          <Grid item xs={12} md={5}>
+            {isLoading ? <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3 }} /> : (
+              <Card sx={{ ...cardSx,
+                background: `linear-gradient(180deg,${alpha(G.accent, 0.07)} 0%,${G.paper} 100%)`,
+                border: `1px solid ${alpha(G.accent, 0.28)}` }}>
+                <CardContent sx={{ p: 2.5 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
+                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75,
+                      bgcolor: alpha(G.accent, 0.12), color: G.accent,
+                      fontWeight: 600, fontSize: 11, px: 1.25, py: 0.375, borderRadius: '999px',
+                      letterSpacing: '.1em', textTransform: 'uppercase' }}>
+                      ราคาเฉลี่ย · ของร้าน
+                    </Box>
+                    <Typography sx={{ color: G.textMuted, fontSize: 12, ml: 'auto', fontFamily: MONO }}>
+                      {periodLabel}
+                    </Typography>
+                  </Box>
+                  <Grid container spacing={1}>
+                    {[
+                      { label: 'แท่ง · รับซื้อ',    value: summary?.avg_bar_buy_price_per_baht  || 0, up: true  },
+                      { label: 'แท่ง · ขายออก',     value: summary?.avg_bar_sell_price_per_baht || 0, up: true  },
+                      { label: 'รูปพรรณ · รับซื้อ', value: summary?.avg_orn_buy_price_per_baht  || 0, up: false },
+                      { label: 'รูปพรรณ · ขายออก',  value: summary?.avg_orn_sell_price_per_baht || 0, up: false },
+                    ].map(p => (
+                      <Grid item xs={6} key={p.label}>
+                        <Box sx={{ p: 1.5, bgcolor: G.paper, border: `1px solid ${G.border}`, borderRadius: '10px' }}>
+                          <Typography sx={{ fontSize: 10.5, color: G.textMuted, textTransform: 'uppercase', letterSpacing: '.1em', mb: 0.5 }}>{p.label}</Typography>
+                          <Typography sx={{ fontSize: 17, fontWeight: 600, fontFamily: MONO, color: G.text }}>
+                            {p.value > 0 ? `฿${fmt(p.value)}` : '—'}
+                          </Typography>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
+                            {p.up ? <TrendingUpIcon sx={{ fontSize: 12, color: G.success }} /> : <TrendingDownIcon sx={{ fontSize: 12, color: G.danger }} />}
+                            <Typography sx={{ fontSize: 11, fontWeight: 600, color: p.up ? G.success : G.danger }}>เฉลี่ย/บาท</Typography>
+                          </Box>
+                        </Box>
+                      </Grid>
+                    ))}
                   </Grid>
-                ))}
-              </Grid>
+                </CardContent>
+              </Card>
+            )}
+          </Grid>
+        </Grid>
 
-              <Typography sx={sectionLabelSx}>ธุรกรรมทั้งหมด</Typography>
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                {(isLoading ? Array(4).fill(null) : allCards).map((c, i) => (
-                  <Grid item xs={6} md={3} key={i}>
-                    {isLoading ? <CardSkeleton /> : <StatCard {...c!} />}
-                  </Grid>
-                ))}
-              </Grid>
-            </>
-          );
-        })()}
+        {/* ── Overall KPI (3 big cards) ── */}
+        <Grid container spacing={2} sx={{ mb: 2.5 }}>
+          {isLoading ? Array(3).fill(0).map((_, i) => (
+            <Grid item xs={12} md={4} key={i}><CardSkeleton /></Grid>
+          )) : <>
+            {/* กำไรสุทธิ */}
+            <Grid item xs={12} md={4}>
+              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
+                    <Box sx={{ px: 1, py: 0.25, borderRadius: '999px', fontSize: 11, fontWeight: 600,
+                      bgcolor: profitPos ? G.successBg : G.dangerBg, color: profitPos ? G.success : G.danger }}>
+                      มาร์จิน {calc?.margin.toFixed(1) || '0.0'}%
+                    </Box>
+                  </Box>
+                  <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ยอดกำไรสุทธิ</Typography>
+                  <Typography sx={{ fontFamily: MONO, fontSize: 'clamp(26px,3vw,34px)', fontWeight: 600,
+                    color: profitPos ? G.success : G.danger, letterSpacing: '-.015em', mt: 1.25, mb: 0.75 }}>
+                    ฿&thinsp;{fmt(calc?.profit || 0)}
+                  </Typography>
+                  <Typography sx={{ color: G.textMuted, fontSize: 12, mb: 1.75 }}>
+                    รายได้รวม ฿{fmt(calc?.rev || 0)} · ต้นทุน ฿{fmt(calc?.cost || 0)}
+                  </Typography>
+                  <Box sx={{ height: 6, bgcolor: alpha(profitPos ? G.success : G.danger, 0.12), borderRadius: '999px', overflow: 'hidden', border: `1px solid ${G.border}` }}>
+                    <Box sx={{ height: '100%', borderRadius: '999px', width: `${Math.min(100, Math.max(0, calc?.margin || 0))}%`,
+                      background: `linear-gradient(90deg,${profitPos ? G.success : G.danger},${alpha(profitPos ? G.success : G.danger, 0.7)})` }} />
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* สต็อกทองแท่ง */}
+            <Grid item xs={12} md={4}>
+              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
+                    <Box sx={{ px: 1, py: 0.25, borderRadius: '999px', fontSize: 11, fontWeight: 600,
+                      bgcolor: alpha(G.accent, 0.12), color: G.accent }}>
+                      {stockBaht > 0 ? 'มีสต็อก' : 'ไม่มีสต็อก'}
+                    </Box>
+                  </Box>
+                  <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ทองในสต็อก (ทองแท่ง)</Typography>
+                  <Typography sx={{ fontFamily: MONO, fontSize: 'clamp(26px,3vw,34px)', fontWeight: 600, color: G.brass, letterSpacing: '-.015em', mt: 1.25, mb: 0.75 }}>
+                    {fmtD(stockBaht)}&thinsp;<Box component="span" sx={{ fontSize: 14, color: G.textMuted, fontWeight: 500 }}>บาท</Box>
+                  </Typography>
+                  <Typography sx={{ color: G.textMuted, fontSize: 12, mb: 1.5 }}>
+                    ≈ {fmtD(barGoldStock?.remaining_grams || 0)} กรัม · มูลค่า ฿{fmt(stockBaht * (summary?.avg_bar_sell_price_per_baht || 0))}
+                  </Typography>
+                  <Box sx={{ display: 'flex', gap: 2, fontSize: 12 }}>
+                    <span style={{ color: G.success }}>เข้า <strong style={{ fontFamily: MONO }}>+{fmtD((summary?.bar_buy||0)/GOLD_BAHT_TO_GRAM_BAR)} บาท</strong></span>
+                    <span style={{ color: G.danger }}>ออก <strong style={{ fontFamily: MONO }}>−{fmtD((summary?.bar_sell||0)/GOLD_BAHT_TO_GRAM_BAR)} บาท</strong></span>
+                  </Box>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            {/* กำไรจำนำ */}
+            <Grid item xs={12} md={4}>
+              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                  <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
+                    <Box sx={{ px: 1, py: 0.25, borderRadius: '999px', fontSize: 11, fontWeight: 600,
+                      bgcolor: G.successBg, color: G.success }}>
+                      รายได้
+                    </Box>
+                  </Box>
+                  <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ดอกเบี้ยจำนำ</Typography>
+                  <Typography sx={{ fontFamily: MONO, fontSize: 'clamp(26px,3vw,34px)', fontWeight: 600,
+                    color: G.success, letterSpacing: '-.015em', mt: 1.25, mb: 0.75 }}>
+                    ฿&thinsp;{fmt(summary?.interest || 0)}
+                  </Typography>
+                  <Typography sx={{ color: G.textMuted, fontSize: 12 }}>
+                    ไถ่ ฿{fmt(summary?.redeem||0)} · จำนำ ฿{fmt(summary?.pawn||0)}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          </>}
+        </Grid>
 
         {/* ── Transaction chart ── */}
         <TransactionChart
