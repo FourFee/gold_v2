@@ -20,6 +20,7 @@ import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
 import { dateHaystack, buildSearchFilter } from "../utils/listFilter";
 import { BarGoldRecord } from "../types";
+import PeriodNavigator, { Period, isInPeriod } from "../components/PeriodNavigator";
 
 dayjs.extend(utc);
 
@@ -31,13 +32,6 @@ type BarGoldEditForm = Omit<Partial<BarGoldRecord>, 'date' | 'weightBaht' | 'wei
   weightGram?: number | string;
   amount?: number | string;
 };
-
-const PERIODS = [
-  { value: 'day',   label: 'วัน'      },
-  { value: 'week',  label: 'สัปดาห์'  },
-  { value: 'month', label: 'เดือน'    },
-  { value: 'all',   label: 'ทั้งหมด'  },
-] as const;
 
 const MODES = [
   { value: 'buy',  label: 'ขายออก', Icon: TrendingUp  },
@@ -59,7 +53,8 @@ export default function BarGoldList() {
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
   const [page, setPage]             = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [selectedPeriod, setSelectedPeriod] = useState<string>("all");
+  const [period, setPeriod]         = useState<Period>("month");
+  const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
 
@@ -68,7 +63,7 @@ export default function BarGoldList() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${API}/list?sort_order=desc&period=${selectedPeriod}`);
+      const res = await fetch(`${API}/list?sort_order=desc&period=all`);
       if (!res.ok) throw new Error();
       const json = await res.json();
       setData(Array.isArray(json) ? json : []);
@@ -78,7 +73,7 @@ export default function BarGoldList() {
     } finally {
       setLoading(false);
     }
-  }, [API, selectedPeriod, notify]);
+  }, [API, notify]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -89,12 +84,12 @@ export default function BarGoldList() {
     return data.filter(item => {
       if (item.mode !== mode) return false;
 
-      // ✅ แก้ไขตรงนี้: แปลง item.date ให้เป็น Local Time ก่อนส่งเข้า dateHaystack
-      // เพื่อให้ตัวหนังสือที่ใช้ค้นหา ตรงกับตัวหนังสือที่ตาเห็นบนตาราง
-      const localDate = dayjs.utc(item.date).local().format(); 
+      // แปลง item.date เป็น Local Time ก่อน เพื่อให้เทียบช่วงเวลาตามเขตเวลาผู้ใช้
+      const localDate = dayjs.utc(item.date).local().format();
+      if (!isInPeriod(localDate, period, selectedDate)) return false;
 
       const hay = [
-        dateHaystack(localDate), // ค้นหาจากวันที่ที่แปลงเป็น local แล้ว
+        dateHaystack(localDate),
         item.firstname,
         item.lastname,
         item.idcard,
@@ -105,7 +100,7 @@ export default function BarGoldList() {
 
       return matches(hay);
     });
-  }, [data, mode, search]);
+  }, [data, mode, search, period, selectedDate]);
 
   const displayedData = filteredData.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage);
 
@@ -248,26 +243,12 @@ export default function BarGoldList() {
       <Paper sx={{ ...paperSx, mb: 2 }} elevation={0}>
         <Box sx={{ p: 2.5, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 2 }}>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start', overflowX: 'auto' }}>
-            {/* Period selector */}
-            <Box>
-              <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 0.75, fontFamily: MONO }}>
-                ช่วงเวลา
-              </Typography>
-              <Box sx={{ display: 'inline-flex', p: '3px', bgcolor: G.bg, border: `1px solid ${G.border}`, borderRadius: '10px' }}>
-                {PERIODS.map(p => (
-                  <Box key={p.value} component="button" onClick={() => { setSelectedPeriod(p.value); setPage(0); }}
-                    sx={{ border: selectedPeriod === p.value ? `1px solid ${G.border}` : '1px solid transparent',
-                      borderRadius: '7px', px: 1.5, py: 0.625, cursor: 'pointer',
-                      bgcolor:    selectedPeriod === p.value ? G.paper : 'transparent',
-                      color:      selectedPeriod === p.value ? G.text  : G.textMuted,
-                      fontWeight: selectedPeriod === p.value ? 600 : 400,
-                      fontSize: 13, fontFamily: 'inherit', transition: 'all .15s',
-                      '&:hover': { color: G.text } }}>
-                    {p.label}
-                  </Box>
-                ))}
-              </Box>
-            </Box>
+            <PeriodNavigator
+              period={period}
+              onPeriodChange={(p) => { setPeriod(p); setPage(0); }}
+              selectedDate={selectedDate}
+              onDateChange={(d) => { setSelectedDate(d); setPage(0); }}
+            />
 
             {/* Mode selector */}
             <Box>

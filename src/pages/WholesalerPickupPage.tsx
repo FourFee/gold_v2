@@ -5,12 +5,15 @@ import dayjs from "dayjs";
 import {
   Box, TextField, Typography, Paper, Button, Stack, Grid, alpha,
   Autocomplete, Snackbar, Alert, Dialog, DialogTitle, DialogContent, DialogActions,
+  IconButton, Tooltip, CircularProgress, List, ListItem,
 } from "@mui/material";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { useTheme } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import { API_BASE, GOLD_BAHT_TO_GRAM_ORNAMENT } from "../config";
 import { useNotify } from "../hooks/useNotify";
@@ -45,6 +48,11 @@ export default function WholesalerPickupPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [newWsName, setNewWsName] = useState("");
   const [savingWs, setSavingWs] = useState(false);
+
+  // Manage-wholesaler dialog
+  const [manageOpen, setManageOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
 
   const fetchWholesalers = useCallback(async () => {
     try {
@@ -133,6 +141,31 @@ export default function WholesalerPickupPage() {
 
   const handleClear = () => { clearForm(); setDateEdited(false); };
 
+  const handleDeleteWholesaler = async (id: number) => {
+    setDeletingId(id);
+    try {
+      const res = await fetch(`${API_BASE}/wholesalers/delete/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      const result = await res.json();
+      // ถ้าร้านมีประวัติ backend จะปิดการใช้งานแทนลบ
+      if (result.status === "deactivated") {
+        notify("ร้านนี้มีประวัติการหยิบทอง — ปิดการใช้งานแทน", "success");
+      } else {
+        notify("ลบร้านเรียบร้อย", "success");
+      }
+      // ถ้าร้านที่ลบกำลังถูกเลือกอยู่ → เคลียร์
+      if (form.wholesaler_id === id) {
+        setForm(prev => ({ ...prev, wholesaler_id: null }));
+      }
+      await fetchWholesalers();
+    } catch {
+      notify("ลบไม่สำเร็จ", "error");
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+    }
+  };
+
   const handleAddWholesaler = async () => {
     const name = newWsName.trim();
     if (!name) { notify("ต้องระบุชื่อร้าน", "error"); return; }
@@ -210,11 +243,20 @@ export default function WholesalerPickupPage() {
                 renderInput={(params) => <TextField {...params} placeholder="ค้นหาหรือเลือกร้าน" sx={inputSx} />}
                 isOptionEqualToValue={(o, v) => o.id === v.id}
               />
-              <Button onClick={() => setAddOpen(true)} variant="outlined"
-                sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minWidth: 44, px: 1.5,
-                  '&:hover': { borderColor: G.accent, color: G.accent } }}>
-                <AddIcon sx={{ fontSize: 18 }} />
-              </Button>
+              <Tooltip title="เพิ่มร้านใหม่" arrow>
+                <Button onClick={() => setAddOpen(true)} variant="outlined"
+                  sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minWidth: 44, px: 1.5,
+                    '&:hover': { borderColor: G.accent, color: G.accent } }}>
+                  <AddIcon sx={{ fontSize: 18 }} />
+                </Button>
+              </Tooltip>
+              <Tooltip title="จัดการร้านส่ง" arrow>
+                <Button onClick={() => setManageOpen(true)} variant="outlined"
+                  sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minWidth: 44, px: 1.5,
+                    '&:hover': { borderColor: G.accent, color: G.accent } }}>
+                  <SettingsOutlinedIcon sx={{ fontSize: 18 }} />
+                </Button>
+              </Tooltip>
             </Box>
           </Grid>
           <Grid item xs={12} sm={4}>
@@ -301,6 +343,77 @@ export default function WholesalerPickupPage() {
             sx={{ bgcolor: G.accent, color: '#fff', borderRadius: '8px',
               '&:hover': { bgcolor: alpha(G.accent, 0.85) } }}>
             {savingWs ? "กำลังบันทึก..." : "เพิ่ม"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Manage wholesalers dialog */}
+      <Dialog open={manageOpen} onClose={() => setManageOpen(false)} fullWidth maxWidth="xs"
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: G.paper, border: `1px solid ${G.border}` } }}>
+        <DialogTitle sx={{ color: G.text, fontWeight: 600 }}>จัดการร้านส่ง</DialogTitle>
+        <DialogContent sx={{ p: 0 }}>
+          {wholesalers.length === 0 ? (
+            <Typography sx={{ p: 3, textAlign: 'center', color: G.textMuted, fontSize: 13 }}>
+              ยังไม่มีร้านส่ง
+            </Typography>
+          ) : (
+            <List sx={{ py: 0 }}>
+              {wholesalers.map((w, i) => (
+                <ListItem key={w.id}
+                  sx={{
+                    borderTop: i === 0 ? `1px solid ${G.border}` : 'none',
+                    borderBottom: `1px solid ${G.border}`,
+                    py: 1.5, px: 3,
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}>
+                  <Typography sx={{ fontSize: 14, color: G.text, fontWeight: 500 }}>
+                    {w.name}
+                  </Typography>
+                  <Tooltip title="ลบ" arrow>
+                    <IconButton size="small" onClick={() => setConfirmDeleteId(w.id)}
+                      disabled={deletingId === w.id}
+                      sx={{ color: G.danger, bgcolor: alpha(G.danger, 0.1), borderRadius: '7px',
+                        '&:hover': { bgcolor: alpha(G.danger, 0.18) } }}>
+                      {deletingId === w.id
+                        ? <CircularProgress size={14} sx={{ color: G.danger }} />
+                        : <DeleteOutlineIcon sx={{ fontSize: 16 }} />}
+                    </IconButton>
+                  </Tooltip>
+                </ListItem>
+              ))}
+            </List>
+          )}
+          <Typography sx={{ p: 2, fontSize: 11, color: G.textMuted, fontStyle: 'italic' }}>
+            ร้านที่มีประวัติการหยิบทอง จะถูกปิดการใช้งานแทนการลบ เพื่อเก็บประวัติไว้
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setManageOpen(false)}
+            sx={{ color: G.textSub, border: `1px solid ${G.border}`, borderRadius: '8px' }}>
+            ปิด
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Confirm delete dialog */}
+      <Dialog open={confirmDeleteId !== null} onClose={() => setConfirmDeleteId(null)}
+        PaperProps={{ sx: { borderRadius: 3, bgcolor: G.paper, border: `1px solid ${G.border}` } }}>
+        <DialogTitle sx={{ color: G.text, fontWeight: 600 }}>ยืนยันการลบ</DialogTitle>
+        <DialogContent>
+          <Typography sx={{ color: G.textSub }}>
+            ลบร้าน "{wholesalers.find(w => w.id === confirmDeleteId)?.name}" ใช่ไหม?
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, gap: 1 }}>
+          <Button onClick={() => setConfirmDeleteId(null)}
+            sx={{ color: G.textSub, border: `1px solid ${G.border}`, borderRadius: '8px' }}>
+            ยกเลิก
+          </Button>
+          <Button onClick={() => confirmDeleteId && handleDeleteWholesaler(confirmDeleteId)}
+            disabled={deletingId !== null}
+            sx={{ bgcolor: G.danger, color: '#fff', borderRadius: '8px',
+              '&:hover': { bgcolor: alpha(G.danger, 0.85) } }}>
+            ลบ
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,7 +1,7 @@
 // src/pages/PawnList.tsx
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import {
   Box, Paper, Typography, Table, TableHead, TableRow, TableCell, TableBody,
   TextField, IconButton, TablePagination, CircularProgress, Skeleton,
@@ -16,15 +16,9 @@ import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
 import { dateHaystack, buildSearchFilter } from "../utils/listFilter";
 import { PawnRecord } from "../types";
+import PeriodNavigator, { Period, isInPeriod } from "../components/PeriodNavigator";
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
-
-const PERIODS = [
-  { value: 'day',   label: 'วัน'      },
-  { value: 'week',  label: 'สัปดาห์'  },
-  { value: 'month', label: 'เดือน'    },
-  { value: 'all',   label: 'ทั้งหมด'  },
-] as const;
 
 export default function PawnList() {
   const theme = useTheme();
@@ -42,7 +36,8 @@ export default function PawnList() {
   const [page, setPage]             = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [search, setSearch]         = useState("");
-  const [period, setPeriod]         = useState("all");
+  const [period, setPeriod]         = useState<Period>("month");
+  const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
 
   const API = `${API_BASE}/pawn`;
 
@@ -59,12 +54,10 @@ export default function PawnList() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const periodData = useMemo(() => period === "all" ? data : data.filter(item => {
-    const start = period === "day" ? dayjs().startOf("day")
-                : period === "week" ? dayjs().startOf("week")
-                : dayjs().startOf("month");
-    return !dayjs(item.date).isBefore(start);
-  }), [data, period]);
+  const periodData = useMemo(
+    () => data.filter(item => isInPeriod(item.date, period, selectedDate)),
+    [data, period, selectedDate],
+  );
 
   const filteredData = useMemo(() => {
     const matches = buildSearchFilter(search);
@@ -209,23 +202,12 @@ export default function PawnList() {
       {/* Controls */}
       <Paper sx={{ ...paperSx, mb: 2 }} elevation={0}>
         <Box sx={{ p: 2.5, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 2 }}>
-          <Box>
-            <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 0.75, fontFamily: MONO }}>ช่วงเวลา</Typography>
-            <Box sx={{ display: 'inline-flex', p: '3px', bgcolor: G.bg, border: `1px solid ${G.border}`, borderRadius: '10px' }}>
-              {PERIODS.map(p => (
-                <Box key={p.value} component="button" onClick={() => { setPeriod(p.value); setPage(0); }}
-                  sx={{ border: period === p.value ? `1px solid ${G.border}` : '1px solid transparent',
-                    borderRadius: '7px', px: 1.5, py: 0.625, cursor: 'pointer',
-                    bgcolor:    period === p.value ? G.paper : 'transparent',
-                    color:      period === p.value ? G.text  : G.textMuted,
-                    fontWeight: period === p.value ? 600 : 400,
-                    fontSize: 13, fontFamily: 'inherit', transition: 'all .15s',
-                    '&:hover': { color: G.text } }}>
-                  {p.label}
-                </Box>
-              ))}
-            </Box>
-          </Box>
+          <PeriodNavigator
+            period={period}
+            onPeriodChange={(p) => { setPeriod(p); setPage(0); }}
+            selectedDate={selectedDate}
+            onDateChange={(d) => { setSelectedDate(d); setPage(0); }}
+          />
           <TextField variant="outlined" placeholder="ค้นหา ชื่อ, เลขบัตร, เบอร์..." value={search}
             onChange={e => setSearch(e.target.value)} size="small"
             sx={{ width: { xs: '100%', sm: 300 },

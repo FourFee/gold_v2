@@ -9,26 +9,18 @@ import {
 import { Delete, Search as SearchIcon, Refresh, Add } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import utc from "dayjs/plugin/utc";
 
 import { API_BASE } from "../config";
 import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
 import { Wholesaler, WholesalerPickupRecord, WholesalerSummaryItem } from "../types";
+import PeriodNavigator, { Period, isInPeriod, formatPeriodLabel } from "../components/PeriodNavigator";
 
 dayjs.extend(utc);
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
-
-const PERIODS = [
-  { value: 'day',   label: 'วันนี้'    },
-  { value: 'week',  label: 'สัปดาห์นี้' },
-  { value: 'month', label: 'เดือนนี้'  },
-  { value: 'all',   label: 'ทั้งหมด'   },
-] as const;
-
-type Period = typeof PERIODS[number]['value'];
 
 export default function WholesalerPickupList() {
   const theme = useTheme();
@@ -37,9 +29,9 @@ export default function WholesalerPickupList() {
   const { snackbar, notify, handleClose } = useNotify();
 
   const [period, setPeriod]                 = useState<Period>("month");
+  const [selectedDate, setSelectedDate]     = useState<Dayjs>(dayjs());
   const [filterWsId, setFilterWsId]         = useState<number | "all">("all");
-  const [data, setData]                     = useState<WholesalerPickupRecord[]>([]);
-  const [summary, setSummary]               = useState<WholesalerSummaryItem[]>([]);
+  const [allData, setAllData]               = useState<WholesalerPickupRecord[]>([]);
   const [wholesalers, setWholesalers]       = useState<Wholesaler[]>([]);
   const [search, setSearch]                 = useState("");
   const [loading, setLoading]               = useState(true);
@@ -52,15 +44,12 @@ export default function WholesalerPickupList() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const wsParam = filterWsId === "all" ? "" : `&wholesaler_id=${filterWsId}`;
-      const [listRes, sumRes, wsRes] = await Promise.all([
-        fetch(`${API_BASE}/wholesaler-pickup/list?period=${period}${wsParam}&sort_order=desc`),
-        fetch(`${API_BASE}/wholesaler-pickup/summary?period=${period}`),
+      const [listRes, wsRes] = await Promise.all([
+        fetch(`${API_BASE}/wholesaler-pickup/list?period=all&sort_order=desc`),
         fetch(`${API_BASE}/wholesalers/list?active_only=false`),
       ]);
-      if (!listRes.ok || !sumRes.ok || !wsRes.ok) throw new Error();
-      setData(await listRes.json());
-      setSummary(await sumRes.json());
+      if (!listRes.ok || !wsRes.ok) throw new Error();
+      setAllData(await listRes.json());
       setWholesalers(await wsRes.json());
       setPage(0);
     } catch {
@@ -68,9 +57,49 @@ export default function WholesalerPickupList() {
     } finally {
       setLoading(false);
     }
-  }, [period, filterWsId, notify]);
+  }, [notify]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // กรองตาม period + วันที่ที่เลือก + ร้านที่เลือก (client-side)
+  const data = useMemo(() => {
+    return allData.filter(item => {
+      const localDate = dayjs.utc(item.pickup_date).local().format();
+      if (!isInPeriod(localDate, period, selectedDate)) return false;
+      if (filterWsId !== "all" && item.wholesaler_id !== filterWsId) return false;
+      return true;
+    });
+  }, [allData, period, selectedDate, filterWsId]);
+
+  // คำนวณสรุปต่อร้าน client-side จาก data ที่กรองแล้ว
+  const summary = useMemo<WholesalerSummaryItem[]>(() => {
+    // ใช้ allData กรอง period (ไม่กรอง wholesaler) เพราะอยากเห็นทุกร้านในตาราง summary
+    const periodData = allData.filter(item => {
+      const localDate = dayjs.utc(item.pickup_date).local().format();
+      return isInPeriod(localDate, period, selectedDate);
+    });
+    const map = new Map<number, WholesalerSummaryItem>();
+    for (const it of periodData) {
+      const cur = map.get(it.wholesaler_id) || {
+        wholesaler_id: it.wholesaler_id,
+        wholesaler_name: it.wholesaler_name,
+        count: 0,
+        weight_baht_sum: 0,
+        bar_used_baht_sum: 0,
+        making_fee_sum: 0,
+        last_pickup_date: null,
+      };
+      cur.count += 1;
+      cur.weight_baht_sum += it.weight_baht || 0;
+      cur.bar_used_baht_sum += it.bar_used_baht || 0;
+      cur.making_fee_sum += it.making_fee || 0;
+      if (!cur.last_pickup_date || dayjs(it.pickup_date).isAfter(dayjs(cur.last_pickup_date))) {
+        cur.last_pickup_date = it.pickup_date;
+      }
+      map.set(it.wholesaler_id, cur);
+    }
+    return Array.from(map.values()).sort((a, b) => b.weight_baht_sum - a.weight_baht_sum);
+  }, [allData, period, selectedDate]);
 
   const filteredData = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -124,7 +153,7 @@ export default function WholesalerPickupList() {
     borderBottom: `1px solid ${G.border}`, bgcolor: G.bg, py: 1.5, px: 2,
   };
 
-  const periodLabel = PERIODS.find(p => p.value === period)?.label || "";
+  const periodLabel = formatPeriodLabel(period, selectedDate);
 
   if (loading) return (
     <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: G.bg, minHeight: '100vh' }}>
@@ -199,25 +228,12 @@ export default function WholesalerPickupList() {
       <Paper sx={{ ...paperSx, mb: 2 }} elevation={0}>
         <Box sx={{ p: 2.5, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'stretch', sm: 'center' }, gap: 2 }}>
           <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            <Box>
-              <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 0.75, fontFamily: MONO }}>
-                ช่วงเวลา
-              </Typography>
-              <Box sx={{ display: 'inline-flex', p: '3px', bgcolor: G.bg, border: `1px solid ${G.border}`, borderRadius: '10px' }}>
-                {PERIODS.map(p => (
-                  <Box key={p.value} component="button" onClick={() => { setPeriod(p.value); setPage(0); }}
-                    sx={{ border: period === p.value ? `1px solid ${G.border}` : '1px solid transparent',
-                      borderRadius: '7px', px: 1.5, py: 0.625, cursor: 'pointer',
-                      bgcolor:    period === p.value ? G.paper : 'transparent',
-                      color:      period === p.value ? G.text  : G.textMuted,
-                      fontWeight: period === p.value ? 600 : 400,
-                      fontSize: 13, fontFamily: 'inherit', transition: 'all .15s',
-                      '&:hover': { color: G.text } }}>
-                    {p.label}
-                  </Box>
-                ))}
-              </Box>
-            </Box>
+            <PeriodNavigator
+              period={period}
+              onPeriodChange={(p) => { setPeriod(p); setPage(0); }}
+              selectedDate={selectedDate}
+              onDateChange={(d) => { setSelectedDate(d); setPage(0); }}
+            />
 
             <Box sx={{ minWidth: 200 }}>
               <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: G.textFaint, textTransform: 'uppercase', letterSpacing: '.1em', mb: 0.75, fontFamily: MONO }}>
