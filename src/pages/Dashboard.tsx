@@ -248,9 +248,9 @@ export default function Dashboard() {
         {/* ── Hero row (profit + live price) ── */}
         <Grid container spacing={2} sx={{ mb: 2.5 }}>
           {/* Profit card */}
-          <Grid item xs={12} md={7}>
+          <Grid item xs={12} md={6}>
             {isLoading ? <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3 }} /> : (
-              <Card sx={cardSx}>
+              <Card sx={{ ...cardSx, height: '100%' }}>
                 <CardContent sx={{ p: { xs: 3, md: 3.5 } }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 13, mb: 1 }}>
                     {greeting} · วัน{dayjs().format('dddd')}ที่ {dayjs().format('D')} {dayjs().format('MMMM')} {dayjs().year() + 543}
@@ -316,9 +316,9 @@ export default function Dashboard() {
           </Grid>
 
           {/* Avg price card */}
-          <Grid item xs={12} md={5}>
+          <Grid item xs={12} md={6}>
             {isLoading ? <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3 }} /> : (
-              <Card sx={cardSx}>
+              <Card sx={{ ...cardSx, height: '100%' }}>
                 <CardContent sx={{ p: 2.5 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.75 }}>
                     <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textMuted,
