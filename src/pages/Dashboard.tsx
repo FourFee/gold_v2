@@ -15,8 +15,6 @@ import localizedFormat from 'dayjs/plugin/localizedFormat';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import weekOfYear from 'dayjs/plugin/weekOfYear';
 
-import TrendingUpIcon    from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon  from '@mui/icons-material/TrendingDown';
 import ChevronLeftIcon   from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon  from '@mui/icons-material/ChevronRight';
 
@@ -252,11 +250,8 @@ export default function Dashboard() {
           {/* Profit card */}
           <Grid item xs={12} md={7}>
             {isLoading ? <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3 }} /> : (
-              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden' }}>
-                <Box sx={{ position: 'absolute', right: -40, bottom: -40, width: 260, height: 260,
-                  background: `radial-gradient(closest-side, ${alpha(G.accent, 0.22)}, transparent 70%)`,
-                  filter: 'blur(2px)', pointerEvents: 'none' }} />
-                <CardContent sx={{ p: { xs: 3, md: 3.5 }, position: 'relative' }}>
+              <Card sx={cardSx}>
+                <CardContent sx={{ p: { xs: 3, md: 3.5 } }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 13, mb: 1 }}>
                     {greeting} · วัน{dayjs().format('dddd')}ที่ {dayjs().format('D')} {dayjs().format('MMMM')} {dayjs().year() + 543}
                   </Typography>
@@ -290,7 +285,7 @@ export default function Dashboard() {
 
                   {/* น้ำหนักบาท + ค่าเฉลี่ย */}
                   <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 1.5,
-                    p: 1.5, borderRadius: '10px', border: `1px solid ${G.border}`, bgcolor: alpha(G.accent, 0.04) }}>
+                    pt: 2, borderTop: `1px solid ${G.border}` }}>
                     {(() => {
                       const buyBaht  = (summary?.bar_buy  || 0) / GOLD_BAHT_TO_GRAM_BAR;
                       const sellBaht = (summary?.bar_sell || 0) / GOLD_BAHT_TO_GRAM_BAR;
@@ -323,38 +318,35 @@ export default function Dashboard() {
           {/* Avg price card */}
           <Grid item xs={12} md={5}>
             {isLoading ? <Skeleton variant="rectangular" height={180} sx={{ borderRadius: 3 }} /> : (
-              <Card sx={{ ...cardSx,
-                background: `linear-gradient(180deg,${alpha(G.accent, 0.07)} 0%,${G.paper} 100%)`,
-                border: `1px solid ${alpha(G.accent, 0.28)}` }}>
+              <Card sx={cardSx}>
                 <CardContent sx={{ p: 2.5 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-                    <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75,
-                      bgcolor: alpha(G.accent, 0.12), color: G.accent,
-                      fontWeight: 600, fontSize: 11, px: 1.25, py: 0.375, borderRadius: '999px',
-                      letterSpacing: '.1em', textTransform: 'uppercase' }}>
-                      ราคาเฉลี่ย · ของร้าน
-                    </Box>
-                    <Typography sx={{ color: G.textMuted, fontSize: 12, ml: 'auto', fontFamily: MONO }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.75 }}>
+                    <Typography sx={{ fontSize: 11, fontWeight: 700, color: G.textMuted,
+                      textTransform: 'uppercase', letterSpacing: '.1em' }}>
+                      ราคาเฉลี่ย
+                    </Typography>
+                    <Typography sx={{ color: G.textMuted, fontSize: 12, fontFamily: MONO }}>
                       {periodLabel}
                     </Typography>
                   </Box>
-                  <Grid container spacing={1}>
+                  <Grid container>
                     {[
-                      { label: 'แท่ง · รับซื้อ',    value: summary?.avg_bar_buy_price_per_baht  || 0, up: true  },
-                      { label: 'แท่ง · ขายออก',     value: summary?.avg_bar_sell_price_per_baht || 0, up: true  },
-                      { label: 'รูปพรรณ · รับซื้อ', value: summary?.avg_orn_buy_price_per_baht  || 0, up: false },
-                      { label: 'รูปพรรณ · ขายออก',  value: summary?.avg_orn_sell_price_per_baht || 0, up: false },
-                    ].map(p => (
+                      { label: 'แท่ง · รับซื้อ',    value: summary?.avg_bar_buy_price_per_baht  || 0 },
+                      { label: 'แท่ง · ขายออก',     value: summary?.avg_bar_sell_price_per_baht || 0 },
+                      { label: 'รูปพรรณ · รับซื้อ', value: summary?.avg_orn_buy_price_per_baht  || 0 },
+                      { label: 'รูปพรรณ · ขายออก',  value: summary?.avg_orn_sell_price_per_baht || 0 },
+                    ].map((p, i) => (
                       <Grid item xs={6} key={p.label}>
-                        <Box sx={{ p: 1.5, bgcolor: G.paper, border: `1px solid ${G.border}`, borderRadius: '10px' }}>
+                        <Box sx={{
+                          p: 1.5,
+                          borderRight: i % 2 === 0 ? `1px solid ${G.border}` : 0,
+                          borderTop:   i >= 2      ? `1px solid ${G.border}` : 0,
+                        }}>
                           <Typography sx={{ fontSize: 10.5, color: G.textMuted, textTransform: 'uppercase', letterSpacing: '.1em', mb: 0.5 }}>{p.label}</Typography>
                           <Typography sx={{ fontSize: 17, fontWeight: 600, fontFamily: MONO, color: G.text }}>
                             {p.value > 0 ? `฿${fmt(p.value)}` : '—'}
                           </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.25 }}>
-                            {p.up ? <TrendingUpIcon sx={{ fontSize: 12, color: G.success }} /> : <TrendingDownIcon sx={{ fontSize: 12, color: G.danger }} />}
-                            <Typography sx={{ fontSize: 11, fontWeight: 600, color: p.up ? G.success : G.danger }}>เฉลี่ย/บาท</Typography>
-                          </Box>
+                          <Typography sx={{ fontSize: 11, color: G.textMuted, mt: 0.25 }}>เฉลี่ย/บาท</Typography>
                         </Box>
                       </Grid>
                     ))}
@@ -372,65 +364,39 @@ export default function Dashboard() {
           )) : <>
             {/* กำไรสุทธิ */}
             <Grid item xs={12} md={4}>
-              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
-                    <Box sx={{ px: 1, py: 0.25, borderRadius: '999px', fontSize: 11, fontWeight: 600,
-                      bgcolor: profitPos ? G.successBg : G.dangerBg, color: profitPos ? G.success : G.danger }}>
-                      มาร์จิน {calc?.margin.toFixed(1) || '0.0'}%
-                    </Box>
-                  </Box>
+              <Card sx={{ ...cardSx, height: '100%' }}>
+                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 } }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ยอดกำไรสุทธิ</Typography>
                   <Typography sx={{ fontFamily: MONO, fontSize: 'clamp(26px,3vw,34px)', fontWeight: 600,
                     color: profitPos ? G.success : G.danger, letterSpacing: '-.015em', mt: 1.25, mb: 0.75 }}>
                     ฿&thinsp;{fmt(calc?.profit || 0)}
                   </Typography>
-                  <Typography sx={{ color: G.textMuted, fontSize: 12, mb: 1.75 }}>
-                    รายได้รวม ฿{fmt(calc?.rev || 0)} · ต้นทุน ฿{fmt(calc?.cost || 0)}
+                  <Typography sx={{ color: G.textMuted, fontSize: 12 }}>
+                    มาร์จิน {(calc?.margin || 0).toFixed(1)}% · รายได้ ฿{fmt(calc?.rev || 0)} · ต้นทุน ฿{fmt(calc?.cost || 0)}
                   </Typography>
-                  <Box sx={{ height: 6, bgcolor: alpha(profitPos ? G.success : G.danger, 0.12), borderRadius: '999px', overflow: 'hidden', border: `1px solid ${G.border}` }}>
-                    <Box sx={{ height: '100%', borderRadius: '999px', width: `${Math.min(100, Math.max(0, calc?.margin || 0))}%`,
-                      background: `linear-gradient(90deg,${profitPos ? G.success : G.danger},${alpha(profitPos ? G.success : G.danger, 0.7)})` }} />
-                  </Box>
                 </CardContent>
               </Card>
             </Grid>
 
             {/* สต็อกทองแท่ง */}
             <Grid item xs={12} md={4}>
-              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
-                    <Box sx={{ px: 1, py: 0.25, borderRadius: '999px', fontSize: 11, fontWeight: 600,
-                      bgcolor: alpha(G.accent, 0.12), color: G.accent }}>
-                      {stockBaht > 0 ? 'มีสต็อก' : 'ไม่มีสต็อก'}
-                    </Box>
-                  </Box>
+              <Card sx={{ ...cardSx, height: '100%' }}>
+                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 } }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ทองในสต็อก (ทองแท่ง)</Typography>
                   <Typography sx={{ fontFamily: MONO, fontSize: 'clamp(26px,3vw,34px)', fontWeight: 600, color: G.brass, letterSpacing: '-.015em', mt: 1.25, mb: 0.75 }}>
                     {fmtD(stockBaht)}&thinsp;<Box component="span" sx={{ fontSize: 14, color: G.textMuted, fontWeight: 500 }}>บาท</Box>
                   </Typography>
-                  <Typography sx={{ color: G.textMuted, fontSize: 12, mb: 1.5 }}>
-                    ≈ {fmtD(barGoldStock?.remaining_grams || 0)} กรัม · มูลค่า ฿{fmt(stockBaht * (summary?.avg_bar_sell_price_per_baht || 0))}
+                  <Typography sx={{ color: G.textMuted, fontSize: 12 }}>
+                    ≈ {fmtD(barGoldStock?.remaining_grams || 0)} ก · เข้า <Box component="span" sx={{ color: G.success, fontFamily: MONO }}>+{fmtD((summary?.bar_buy||0)/GOLD_BAHT_TO_GRAM_BAR)}</Box> · ออก <Box component="span" sx={{ color: G.danger, fontFamily: MONO }}>−{fmtD((summary?.bar_sell||0)/GOLD_BAHT_TO_GRAM_BAR)}</Box>
                   </Typography>
-                  <Box sx={{ display: 'flex', gap: 2, fontSize: 12 }}>
-                    <span style={{ color: G.success }}>เข้า <strong style={{ fontFamily: MONO }}>+{fmtD((summary?.bar_buy||0)/GOLD_BAHT_TO_GRAM_BAR)} บาท</strong></span>
-                    <span style={{ color: G.danger }}>ออก <strong style={{ fontFamily: MONO }}>−{fmtD((summary?.bar_sell||0)/GOLD_BAHT_TO_GRAM_BAR)} บาท</strong></span>
-                  </Box>
                 </CardContent>
               </Card>
             </Grid>
 
             {/* กำไรจำนำ */}
             <Grid item xs={12} md={4}>
-              <Card sx={{ ...cardSx, position: 'relative', overflow: 'hidden', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 }, flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <Box sx={{ position: 'absolute', top: 16, right: 16 }}>
-                    <Box sx={{ px: 1, py: 0.25, borderRadius: '999px', fontSize: 11, fontWeight: 600,
-                      bgcolor: G.successBg, color: G.success }}>
-                      รายได้
-                    </Box>
-                  </Box>
+              <Card sx={{ ...cardSx, height: '100%' }}>
+                <CardContent sx={{ p: { xs: 2.25, sm: 2.75 } }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ดอกเบี้ยจำนำ</Typography>
                   <Typography sx={{ fontFamily: MONO, fontSize: 'clamp(26px,3vw,34px)', fontWeight: 600,
                     color: G.success, letterSpacing: '-.015em', mt: 1.25, mb: 0.75 }}>
