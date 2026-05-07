@@ -312,11 +312,11 @@ export default function Dashboard() {
                   <Typography component="h1"
                     sx={{ fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(20px,2.4vw,30px)', lineHeight: 1.2, mb: 1.5, color: G.text }}>
                     กำไรจากทองแท่ง{periodText}{' '}
-                    <Box component="em" sx={{
-                      fontStyle: 'italic', color: profitPos ? G.success : G.danger,
-                      fontWeight: 500, fontFamily: SERIF,
-                      fontSize: 'clamp(32px, 4vw, 48px)',
-                      letterSpacing: '-.02em',
+                    <Box component="span" sx={{
+                      color: profitPos ? G.success : G.danger,
+                      fontWeight: 600, fontFamily: MONO,
+                      fontSize: 'clamp(20px, 2.4vw, 30px)',
+                      letterSpacing: '-.015em',
                       fontVariantNumeric: 'tabular-nums',
                     }}>
                       ฿&thinsp;{fmt(barProfit)}
@@ -420,10 +420,9 @@ export default function Dashboard() {
                 <CardContent sx={{ p: { xs: 2.25, sm: 2.75 } }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ยอดกำไรสุทธิ</Typography>
                   <Typography sx={{
-                    fontFamily: SERIF, fontStyle: 'italic',
-                    fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 500,
+                    fontFamily: MONO, fontSize: 'clamp(26px, 3vw, 34px)', fontWeight: 600,
                     color: profitPos ? G.success : G.danger,
-                    letterSpacing: '-.02em', lineHeight: 1.05,
+                    letterSpacing: '-.015em', lineHeight: 1.05,
                     fontVariantNumeric: 'tabular-nums',
                     mt: 1.25, mb: 0.75,
                   }}>
@@ -442,13 +441,12 @@ export default function Dashboard() {
                 <CardContent sx={{ p: { xs: 2.25, sm: 2.75 } }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ทองในสต็อก (ทองแท่ง)</Typography>
                   <Typography sx={{
-                    fontFamily: SERIF, fontStyle: 'italic',
-                    fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 500,
-                    color: G.brass, letterSpacing: '-.02em', lineHeight: 1.05,
+                    fontFamily: MONO, fontSize: 'clamp(26px, 3vw, 34px)', fontWeight: 600,
+                    color: G.brass, letterSpacing: '-.015em', lineHeight: 1.05,
                     fontVariantNumeric: 'tabular-nums',
                     mt: 1.25, mb: 0.75,
                   }}>
-                    {fmtD(stockBaht)}&thinsp;<Box component="span" sx={{ fontSize: 14, color: G.textMuted, fontWeight: 500, fontStyle: 'normal', fontFamily: 'inherit' }}>บาท</Box>
+                    {fmtD(stockBaht)}&thinsp;<Box component="span" sx={{ fontSize: 14, color: G.textMuted, fontWeight: 500 }}>บาท</Box>
                   </Typography>
                   <Typography sx={{ color: G.textMuted, fontSize: 12 }}>
                     ≈ {fmtD(barGoldStock?.remaining_grams || 0)} ก · เข้า <Box component="span" sx={{ color: G.success, fontFamily: MONO }}>+{fmtD((summary?.bar_buy||0)/GOLD_BAHT_TO_GRAM_BAR)}</Box> · ออก <Box component="span" sx={{ color: G.danger, fontFamily: MONO }}>−{fmtD((summary?.bar_sell||0)/GOLD_BAHT_TO_GRAM_BAR)}</Box>
@@ -463,9 +461,8 @@ export default function Dashboard() {
                 <CardContent sx={{ p: { xs: 2.25, sm: 2.75 } }}>
                   <Typography sx={{ color: G.textMuted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.12em', fontWeight: 600 }}>ดอกเบี้ยจำนำ</Typography>
                   <Typography sx={{
-                    fontFamily: SERIF, fontStyle: 'italic',
-                    fontSize: 'clamp(32px, 4vw, 44px)', fontWeight: 500,
-                    color: G.success, letterSpacing: '-.02em', lineHeight: 1.05,
+                    fontFamily: MONO, fontSize: 'clamp(26px, 3vw, 34px)', fontWeight: 600,
+                    color: G.success, letterSpacing: '-.015em', lineHeight: 1.05,
                     fontVariantNumeric: 'tabular-nums',
                     mt: 1.25, mb: 0.75,
                   }}>
