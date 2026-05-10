@@ -361,7 +361,11 @@ export default function BarGoldList() {
                         </TableCell>
                       ))}
                       {(['weightBaht','weightGram','amount'] as const).map(field => (
-                        <TableCell key={field}>
+                        <TableCell
+                          key={field}
+                          align="right"
+                          sx={field === 'weightGram' ? { display: { xs: 'none', md: 'table-cell' } } : undefined}
+                        >
                           <TextField size="small" name={field} type="number"
                             value={form[field] || ''} onChange={handleChange} fullWidth />
                         </TableCell>
