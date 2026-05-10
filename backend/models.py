@@ -97,3 +97,15 @@ class WholesalerPickup(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     wholesaler = relationship("Wholesaler", back_populates="pickups")
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+    id = Column(Integer, primary_key=True, index=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    user = Column(String, default="system")
+    action = Column(String, nullable=False)        # CREATE / UPDATE / DELETE
+    entity = Column(String, nullable=False, index=True)
+    entity_id = Column(Integer, index=True, nullable=True)
+    changes = Column(String, default="")           # JSON string: {"before": {...}, "after": {...}}
+

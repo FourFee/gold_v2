@@ -101,6 +101,16 @@ export interface WholesalerSummaryItem {
   last_pickup_date: string | null;
 }
 
+export interface AuditLogEntry {
+  id: number;
+  timestamp: string;
+  user: string;
+  action: 'CREATE' | 'UPDATE' | 'DELETE';
+  entity: string;
+  entity_id: number | null;
+  changes: string;
+}
+
 export interface AllGoldTransactionRecord {
   id: number;
   date: string;

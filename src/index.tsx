@@ -19,6 +19,7 @@ import BarGoldExchange from "./pages/BarGoldExchange";
 import BarGoldExchangeHistory from "./pages/BarGoldExchangeHistory";
 import WholesalerPickupPage from "./pages/WholesalerPickupPage";
 import WholesalerPickupList from "./pages/WholesalerPickupList";
+import AuditLogPage from "./pages/AuditLogPage";
 
 import ThemeContextProvider from "./layout/ThemeContext";
 
@@ -43,6 +44,7 @@ root.render(
               <Route path="/bar-gold-exchange-history" element={<BarGoldExchangeHistory />} />
               <Route path="/wholesaler-pickup" element={<WholesalerPickupPage />} />
               <Route path="/wholesaler-pickup-list" element={<WholesalerPickupList />} />
+              <Route path="/audit-log" element={<AuditLogPage />} />
             </Route>
           </Routes>
         </BrowserRouter>

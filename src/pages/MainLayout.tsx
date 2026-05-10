@@ -17,6 +17,7 @@ import FormatListBulletedIcon   from "@mui/icons-material/FormatListBulleted";
 import HistoryIcon              from "@mui/icons-material/History";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import StorefrontOutlinedIcon   from "@mui/icons-material/StorefrontOutlined";
+import FactCheckOutlinedIcon    from "@mui/icons-material/FactCheckOutlined";
 import { ColorModeContext } from "../layout/ThemeContext";
 import { makeG } from "../utils/dashboardTokens";
 
@@ -51,6 +52,12 @@ const NAV = [
       { label: 'รายการจำนำ',          path: '/pawn-list',               Icon: FormatListBulletedIcon  },
       { label: 'รายการหยิบจากร้านส่ง', path: '/wholesaler-pickup-list', Icon: StorefrontOutlinedIcon },
       { label: 'ประวัติแลกเปลี่ยน',  path: '/bar-gold-exchange-history', Icon: HistoryIcon            },
+    ],
+  },
+  {
+    section: 'ระบบ',
+    items: [
+      { label: 'ประวัติการเปลี่ยนแปลง', path: '/audit-log', Icon: FactCheckOutlinedIcon },
     ],
   },
 ];
