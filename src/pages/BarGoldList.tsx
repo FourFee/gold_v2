@@ -400,7 +400,6 @@ export default function BarGoldList() {
                             onChange={handleChange}
                             fullWidth
                             disabled={field === 'weightGram'}
-                            helperText={field === 'weightGram' ? 'auto จากบาท' : undefined}
                           />
                         </TableCell>
                       ))}
