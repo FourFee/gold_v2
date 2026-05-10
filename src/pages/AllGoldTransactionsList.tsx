@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs, { Dayjs } from "dayjs";
+import utc from "dayjs/plugin/utc";
+dayjs.extend(utc);
 import {
   Box, Paper, Typography, Table, TableHead, TableRow, TableCell, TableBody,
   TextField, IconButton, TablePagination, CircularProgress, Skeleton,
@@ -96,9 +98,25 @@ export default function AllGoldTransactionsList() {
 
   const saveEdit = async () => {
     if (editIndex === null) return;
+    const original = displayedData[editIndex];
+
+    // คงเวลา (ชั่วโมง/นาที/วินาที) ของ record เดิม — input type=date ให้แค่วัน
+    let dateIso: string | null | undefined = form.date;
+    if (form.date && original?.date) {
+      const datePart = form.date.split('T')[0]; // เผื่อมี T เก่าค้างอยู่
+      const originalDt = dayjs.utc(original.date).local();
+      dateIso = dayjs(datePart)
+        .hour(originalDt.hour())
+        .minute(originalDt.minute())
+        .second(originalDt.second())
+        .millisecond(originalDt.millisecond())
+        .toISOString();
+    }
+
     try {
       const res = await fetch(`${API}/update/${form.id}`, {
-        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form),
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, date: dateIso }),
       });
       if (!res.ok) throw new Error();
       notify("อัปเดตสำเร็จ", "success");

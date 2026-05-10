@@ -2,6 +2,8 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs, { Dayjs } from "dayjs";
+import utc from "dayjs/plugin/utc";
+dayjs.extend(utc);
 import {
   Box, Paper, Typography, Table, TableHead, TableRow, TableCell, TableBody,
   TextField, IconButton, TablePagination, CircularProgress, Skeleton,
@@ -94,15 +96,30 @@ export default function PawnList() {
   const startEdit = (i: number) => {
     setEditIndex(i);
     const item = filteredData[page * rowsPerPage + i];
-    setForm({ ...item, date: item.date ? dayjs(item.date).format('YYYY-MM-DD') : '' });
+    // แสดงวันที่เป็น local (DB เป็น UTC)
+    setForm({ ...item, date: item.date ? dayjs.utc(item.date).local().format('YYYY-MM-DD') : '' });
   };
 
   const saveEdit = async () => {
     if (editIndex === null || !form.id) return;
     const id = form.id;
-    // แปลง date string (YYYY-MM-DD) เป็น ISO โดยถือเป็น local midnight
-    // เพื่อกัน bug timezone ทำให้วันที่ถอยกลับ 1 วัน
-    const payload = { ...form, date: form.date ? dayjs(form.date).toISOString() : null };
+    const original = filteredData[page * rowsPerPage + editIndex];
+
+    // คงเวลา (ชั่วโมง/นาที/วินาที) ของ record เดิม — DatePicker ให้แค่วัน
+    let dateIso: string | null = null;
+    if (form.date && original?.date) {
+      const originalDt = dayjs.utc(original.date).local();
+      dateIso = dayjs(form.date)
+        .hour(originalDt.hour())
+        .minute(originalDt.minute())
+        .second(originalDt.second())
+        .millisecond(originalDt.millisecond())
+        .toISOString();
+    } else if (form.date) {
+      dateIso = dayjs(form.date).toISOString();
+    }
+
+    const payload = { ...form, date: dateIso };
     const res = await fetch(`${API}/update/${id}`, {
       method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
