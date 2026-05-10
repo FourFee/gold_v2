@@ -3,7 +3,6 @@ import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import dayjs, { Dayjs } from "dayjs";
 import utc from "dayjs/plugin/utc";
-dayjs.extend(utc);
 import {
   Box, Paper, Typography, Table, TableHead, TableRow, TableCell, TableBody,
   TextField, IconButton, TablePagination, CircularProgress, Skeleton,
@@ -19,6 +18,8 @@ import { makeG } from "../utils/dashboardTokens";
 import { dateHaystack, buildSearchFilter } from "../utils/listFilter";
 import { PawnRecord } from "../types";
 import PeriodNavigator, { Period, isInPeriod } from "../components/PeriodNavigator";
+
+dayjs.extend(utc);
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 

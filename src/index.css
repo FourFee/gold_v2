@@ -12,13 +12,20 @@ code {
     monospace;
 }
 
-/* ซ่อนลูกศร spinner ของ input type=number ทั้งหมด */
+/* ซ่อนลูกศร spinner ของ input type=number ทั้งหมด (ครอบทั้ง MUI TextField) */
 input[type=number]::-webkit-outer-spin-button,
-input[type=number]::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+input[type=number]::-webkit-inner-spin-button,
+.MuiOutlinedInput-input::-webkit-outer-spin-button,
+.MuiOutlinedInput-input::-webkit-inner-spin-button,
+.MuiInputBase-input::-webkit-outer-spin-button,
+.MuiInputBase-input::-webkit-inner-spin-button {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  margin: 0 !important;
 }
-input[type=number] {
-  -moz-appearance: textfield;
-  appearance: textfield;
+input[type=number],
+.MuiOutlinedInput-input[type=number],
+.MuiInputBase-input[type=number] {
+  -moz-appearance: textfield !important;
+  appearance: textfield !important;
 }
