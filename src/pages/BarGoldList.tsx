@@ -15,7 +15,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { Snackbar, Alert } from "@mui/material";
-import { API_BASE } from "../config";
+import { API_BASE, GOLD_BAHT_TO_GRAM_BAR } from "../config";
 import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
 import { dateHaystack, buildSearchFilter } from "../utils/listFilter";
@@ -170,8 +170,17 @@ export default function BarGoldList() {
     } catch { notify("บันทึกไม่สำเร็จ", "error"); }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm(f => ({ ...f, [e.target.name]: e.target.value }));
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setForm(f => ({
+      ...f,
+      [name]: value,
+      // ปรับน้ำหนักกรัมตามบาทอัตโนมัติ (1 บาท = 15.244 ก. สำหรับทองแท่ง)
+      ...(name === 'weightBaht'
+        ? { weightGram: value === '' ? '' : (parseFloat(value) * GOLD_BAHT_TO_GRAM_BAR).toFixed(2) }
+        : {}),
+    }));
+  };
 
   const paperSx = {
     border: `1px solid ${G.border}`,
@@ -383,8 +392,16 @@ export default function BarGoldList() {
                           align="right"
                           sx={field === 'weightGram' ? { display: { xs: 'none', md: 'table-cell' } } : undefined}
                         >
-                          <TextField size="small" name={field} type="number"
-                            value={form[field] || ''} onChange={handleChange} fullWidth />
+                          <TextField
+                            size="small"
+                            name={field}
+                            type="number"
+                            value={form[field] || ''}
+                            onChange={handleChange}
+                            fullWidth
+                            disabled={field === 'weightGram'}
+                            helperText={field === 'weightGram' ? 'auto จากบาท' : undefined}
+                          />
                         </TableCell>
                       ))}
                       <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>
