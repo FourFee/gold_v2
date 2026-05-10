@@ -125,7 +125,8 @@ export default function BarGoldList() {
   const startEdit = (i: number) => {
     setEditIndex(i);
     const item = filteredData[page * rowsPerPage + i];
-    setForm({ ...item, date: item.date ? dayjs(item.date) : dayjs(),
+    // อ่านเป็น UTC แล้วแปลงเป็น local — ตรงกับวิธีที่ตารางแสดงผล
+    setForm({ ...item, date: item.date ? dayjs.utc(item.date).local() : dayjs(),
       weightBaht: String(item.weightBaht || ""),
       weightGram: String(item.weightGram || ""),
       amount:     String(item.amount     || ""),
@@ -134,14 +135,30 @@ export default function BarGoldList() {
 
   const saveEdit = async () => {
     if (editIndex === null) return;
-    const id = filteredData[page * rowsPerPage + editIndex].id;
+    const original = filteredData[page * rowsPerPage + editIndex];
+    const id = original.id;
+
+    // คงเวลา (ชั่วโมง/นาที/วินาที) ของ record เดิม แม้ผู้ใช้จะเลือกวันใหม่
+    // เพราะ DatePicker คืนค่าที่เวลา 00:00 เสมอ
+    let dateIso: string | null = null;
+    if (form.date) {
+      const originalDt = dayjs.utc(original.date).local();
+      const picked = form.date as Dayjs;
+      dateIso = picked
+        .hour(originalDt.hour())
+        .minute(originalDt.minute())
+        .second(originalDt.second())
+        .millisecond(originalDt.millisecond())
+        .toISOString();
+    }
+
     try {
       const res = await fetch(`${API}/update/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          date:       form.date ? (form.date as Dayjs).toISOString() : null,
+          date:       dateIso,
           weightBaht: parseFloat(String(form.weightBaht || 0)),
           weightGram: parseFloat(String(form.weightGram || 0)),
           amount:     parseFloat(String(form.amount     || 0)),
