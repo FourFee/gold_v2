@@ -295,7 +295,7 @@ export default function AllGoldTransactionsList() {
                   </TableCell>
 
                   {/* Numeric cells */}
-                  {COLS.map((col, ci) => (
+                  {COLS.map((col) => (
                     <TableCell key={col.key} align="right">
                       {col.key === '_buyEx' ? (
                         <Typography sx={{ fontFamily: MONO, fontSize: 12, color: col.color || G.textSub }}>

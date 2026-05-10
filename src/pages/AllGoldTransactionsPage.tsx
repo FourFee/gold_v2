@@ -8,10 +8,13 @@ import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs from "dayjs";
 import "dayjs/locale/th";
+import utc from "dayjs/plugin/utc";
 import { API_BASE } from "../config";
 import { useNotify } from "../hooks/useNotify";
 import { makeG } from "../utils/dashboardTokens";
 import { usePersistedForm } from "../hooks/usePersistedForm";
+
+dayjs.extend(utc);
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
@@ -43,25 +46,30 @@ export default function AllGoldTransactionsPage() {
 
   const [form, setForm, clearForm] = usePersistedForm("all-transactions", TRANS_INITIAL);
   const [editId, setEditId] = useState<number | null>(null);
+  const [originalDateIso, setOriginalDateIso] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
     setEditId(parseInt(id));
     fetch(`${API_BASE}/all-gold-transactions/${id}`)
       .then(r => r.json())
-      .then(data => setForm({
-        date: data.date ? dayjs(data.date).format('YYYY-MM-DD') : "",
-        redeem:        String(data.redeem        ?? ""),
-        interest:      String(data.interest      ?? ""),
-        pawn:          String(data.pawn          ?? ""),
-        buyIn:         String(data.buyIn         ?? ""),
-        exchange:      String(data.exchange      ?? ""),
-        sellOut:       String(data.sellOut       ?? ""),
-        expenses:      String(data.expenses      ?? 0),
-        diamondBuyIn:  String(data.diamondBuyIn  ?? 0),
-        diamondSellOut:String(data.diamondSellOut ?? 0),
-        platedGold:    String(data.platedGold    ?? 0),
-      }))
+      .then(data => {
+        setOriginalDateIso(data.date || null);
+        setForm({
+          // อ่าน UTC จาก DB → แปลงเป็น local เพื่อโชว์ใน DatePicker
+          date: data.date ? dayjs.utc(data.date).local().format('YYYY-MM-DD') : "",
+          redeem:        String(data.redeem        ?? ""),
+          interest:      String(data.interest      ?? ""),
+          pawn:          String(data.pawn          ?? ""),
+          buyIn:         String(data.buyIn         ?? ""),
+          exchange:      String(data.exchange      ?? ""),
+          sellOut:       String(data.sellOut       ?? ""),
+          expenses:      String(data.expenses      ?? 0),
+          diamondBuyIn:  String(data.diamondBuyIn  ?? 0),
+          diamondSellOut:String(data.diamondSellOut ?? 0),
+          platedGold:    String(data.platedGold    ?? 0),
+        });
+      })
       .catch(() => notify("ไม่สามารถโหลดข้อมูลได้", "error"));
   }, [id]);
 
@@ -71,9 +79,20 @@ export default function AllGoldTransactionsPage() {
   const handleSubmit = async () => {
     const payload = {
       date: form.date ? (() => {
-        const d = dayjs(form.date);
+        const picked = dayjs(form.date);
+        // โหมด edit: คงเวลา (ชม./นาที/วินาที) ของ record เดิม
+        if (editId && originalDateIso) {
+          const origLocal = dayjs.utc(originalDateIso).local();
+          return picked
+            .hour(origLocal.hour())
+            .minute(origLocal.minute())
+            .second(origLocal.second())
+            .millisecond(origLocal.millisecond())
+            .toISOString();
+        }
+        // โหมด create: วันเดียวกับวันนี้ → ใช้เวลาปัจจุบัน, วันอื่น → 12:00
         const now = dayjs();
-        return (d.isSame(now, 'day') ? now : d.hour(12).minute(0).second(0)).toISOString();
+        return (picked.isSame(now, 'day') ? now : picked.hour(12).minute(0).second(0)).toISOString();
       })() : "",
       redeem:         parseFloat(form.redeem        || "0"),
       interest:       parseFloat(form.interest      || "0"),

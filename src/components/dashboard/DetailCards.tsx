@@ -87,7 +87,7 @@ function MetricCell({ label, color, primary, primaryUnit, sub, subVal, sub2, sub
   );
 }
 
-export default function DetailCards({ summary, calc, isLoading }: Props) {
+export default function DetailCards({ summary, isLoading }: Props) {
   const theme = useTheme();
   const G = makeG(theme);
 

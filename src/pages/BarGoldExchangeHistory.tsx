@@ -11,10 +11,13 @@ import { Edit, Save, Delete, Search as SearchIcon, Refresh } from '@mui/icons-ma
 import { Snackbar, Alert } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
 import { API_BASE } from '../config';
 import { useNotify } from '../hooks/useNotify';
 import { makeG } from '../utils/dashboardTokens';
 import { dateHaystack, buildSearchFilter } from '../utils/listFilter';
+
+dayjs.extend(utc);
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 const API_ENDPOINT = `${API_BASE}/bar-gold-exchange`;
@@ -90,7 +93,8 @@ export default function BarGoldExchangeHistory() {
   // ── Edit ─────────────────────────────────────────────────────────
   const startEdit = (row: ExchangeData) => {
     setEditId(row.id);
-    setForm({ ...row, date: row.date ? dayjs(row.date).format('YYYY-MM-DDTHH:mm') : '' });
+    // อ่าน UTC จาก DB แล้วแปลงเป็น local เพื่อแสดงใน input
+    setForm({ ...row, date: row.date ? dayjs.utc(row.date).local().format('YYYY-MM-DDTHH:mm') : '' });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -304,10 +308,10 @@ export default function BarGoldExchangeHistory() {
                       ) : (
                         <Box>
                           <Typography sx={{ fontSize: 13, fontWeight: 600, color: G.text, fontFamily: MONO }}>
-                            {dayjs(row.date).format('DD/MM/YY')}
+                            {dayjs.utc(row.date).local().format('DD/MM/YY')}
                           </Typography>
                           <Typography sx={{ fontSize: 11, color: G.textMuted, fontFamily: MONO }}>
-                            {dayjs(row.date).format('HH:mm')}
+                            {dayjs.utc(row.date).local().format('HH:mm')}
                           </Typography>
                         </Box>
                       )}
