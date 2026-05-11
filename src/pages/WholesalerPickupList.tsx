@@ -7,7 +7,7 @@ import {
   Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert,
 } from "@mui/material";
 import { Delete, Search as SearchIcon, Refresh, Add } from "@mui/icons-material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import dayjs, { Dayjs } from "dayjs";
 import utc from "dayjs/plugin/utc";
@@ -40,6 +40,13 @@ export default function WholesalerPickupList() {
   const [deleting, setDeleting]             = useState<number | null>(null);
   const [confirmOpen, setConfirmOpen]       = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+
+  // Pre-fill search จาก ?q= ใน URL (มาจาก GlobalSearch)
+  const location = useLocation();
+  useEffect(() => {
+    const q = new URLSearchParams(location.search).get('q');
+    if (q !== null) setSearch(q);
+  }, [location.search]);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);

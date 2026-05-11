@@ -101,6 +101,25 @@ export interface WholesalerSummaryItem {
   last_pickup_date: string | null;
 }
 
+export interface SearchHit {
+  entity: 'bar_gold' | 'ornament_gold' | 'pawn' | 'wholesaler' | 'wholesaler_pickup';
+  id: number;
+  title: string;
+  subtitle: string;
+  date: string | null;
+  route: string;
+  query: string;
+}
+
+export interface SearchResults {
+  bar_gold: SearchHit[];
+  ornament_gold: SearchHit[];
+  pawn: SearchHit[];
+  wholesaler: SearchHit[];
+  wholesaler_pickup: SearchHit[];
+  total: number;
+}
+
 export interface AuditLogEntry {
   id: number;
   timestamp: string;

@@ -1,6 +1,6 @@
 // src/pages/OrnamentGoldList.tsx
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import dayjs, { Dayjs } from "dayjs";
 import utc from "dayjs/plugin/utc";
 import {
@@ -47,6 +47,13 @@ export default function OrnamentGoldList() {
   const [search, setSearch]         = useState("");
   const [period, setPeriod]         = useState<Period>("month");
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
+
+  // Pre-fill search จาก ?q= ใน URL (มาจาก GlobalSearch)
+  const location = useLocation();
+  useEffect(() => {
+    const q = new URLSearchParams(location.search).get('q');
+    if (q !== null) setSearch(q);
+  }, [location.search]);
 
   const API = `${API_BASE}/ornament-gold`;
 

@@ -20,6 +20,7 @@ import StorefrontOutlinedIcon   from "@mui/icons-material/StorefrontOutlined";
 import FactCheckOutlinedIcon    from "@mui/icons-material/FactCheckOutlined";
 import { ColorModeContext } from "../layout/ThemeContext";
 import { makeG } from "../utils/dashboardTokens";
+import GlobalSearch from "../components/GlobalSearch";
 
 const drawerWidth = 260;
 const MONO  = '"JetBrains Mono", ui-monospace, monospace';
@@ -171,11 +172,14 @@ export default function MainLayout() {
               ห้างทอง
             </Typography>
           </Box>
-          <IconButton onClick={colorMode.toggleColorMode}
-            sx={{ color: G.textSub, bgcolor: G.bg, border: `1px solid ${G.border}`, borderRadius: '8px', p: '6px',
-              '&:hover': { borderColor: G.accent, color: G.accent } }}>
-            {colorMode?.mode === "dark" ? <Brightness7 sx={{ fontSize: 18 }} /> : <Brightness4 sx={{ fontSize: 18 }} />}
-          </IconButton>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1, justifyContent: 'flex-end' }}>
+            <GlobalSearch />
+            <IconButton onClick={colorMode.toggleColorMode}
+              sx={{ color: G.textSub, bgcolor: G.bg, border: `1px solid ${G.border}`, borderRadius: '8px', p: '6px',
+                '&:hover': { borderColor: G.accent, color: G.accent } }}>
+              {colorMode?.mode === "dark" ? <Brightness7 sx={{ fontSize: 18 }} /> : <Brightness4 sx={{ fontSize: 18 }} />}
+            </IconButton>
+          </Box>
         </Toolbar>
       </AppBar>
 
