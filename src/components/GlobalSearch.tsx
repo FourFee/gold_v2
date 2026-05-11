@@ -13,8 +13,11 @@ import {
 import SearchIcon from "@mui/icons-material/Search";
 import CloseIcon from "@mui/icons-material/Close";
 import { useTheme } from "@mui/material/styles";
-import dayjs from "dayjs";
+import dayjs, { Dayjs } from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 
 import { API_BASE } from "../config";
 import { makeG } from "../utils/dashboardTokens";
@@ -38,14 +41,17 @@ export default function GlobalSearch() {
   const navigate = useNavigate();
 
   const [q, setQ] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement>(null);
 
-  // debounced fetch
+  // debounced fetch — ยิงเมื่อมี q หรือ date อย่างน้อยหนึ่งอย่าง
   useEffect(() => {
-    if (!q.trim()) {
+    const hasQ = q.trim().length > 0;
+    const hasDate = selectedDate !== null && selectedDate.isValid();
+    if (!hasQ && !hasDate) {
       setResults(null);
       setOpen(false);
       return;
@@ -53,7 +59,10 @@ export default function GlobalSearch() {
     const handle = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(`${API_BASE}/search?q=${encodeURIComponent(q.trim())}`);
+        const params = new URLSearchParams();
+        if (hasQ) params.set("q", q.trim());
+        if (hasDate) params.set("date", selectedDate!.format("YYYY-MM-DD"));
+        const res = await fetch(`${API_BASE}/search?${params.toString()}`);
         if (res.ok) {
           setResults(await res.json());
           setOpen(true);
@@ -65,40 +74,47 @@ export default function GlobalSearch() {
       }
     }, 300);
     return () => clearTimeout(handle);
-  }, [q]);
+  }, [q, selectedDate]);
 
   const handleClick = useCallback((hit: SearchHit) => {
     setOpen(false);
     setQ("");
+    setSelectedDate(null);
     setResults(null);
     // นำทาง พร้อมส่ง q ทาง URL — หน้า list ที่รองรับจะ pre-fill ได้
-    navigate(`${hit.route}?q=${encodeURIComponent(hit.query)}`);
+    const params = new URLSearchParams();
+    if (hit.query) params.set("q", hit.query);
+    navigate(`${hit.route}?${params.toString()}`);
   }, [navigate]);
 
   const handleClear = () => {
     setQ("");
+    setSelectedDate(null);
     setResults(null);
     setOpen(false);
   };
 
+  const inputBoxSx = {
+    '& .MuiOutlinedInput-root': {
+      borderRadius: '10px', bgcolor: G.bg, fontSize: 13,
+      '& fieldset': { borderColor: G.border },
+      '&:hover fieldset': { borderColor: G.accent },
+      '&.Mui-focused fieldset': { borderColor: G.accent },
+    },
+  };
+
   return (
     <ClickAwayListener onClickAway={() => setOpen(false)}>
-      <Box ref={anchorRef} sx={{ position: 'relative', width: { xs: 180, sm: 280, md: 360 } }}>
+      <Box ref={anchorRef} sx={{ position: 'relative', display: 'flex', gap: 1,
+        width: { xs: 240, sm: 380, md: 480 } }}>
+        {/* ช่องค้นหาข้อความ */}
         <TextField
           size="small"
-          fullWidth
           placeholder="ค้นหา ชื่อ, เบอร์, ร้าน..."
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onFocus={() => { if (results) setOpen(true); }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: '10px', bgcolor: G.bg, fontSize: 13,
-              '& fieldset': { borderColor: G.border },
-              '&:hover fieldset': { borderColor: G.accent },
-              '&.Mui-focused fieldset': { borderColor: G.accent },
-            },
-          }}
+          sx={{ ...inputBoxSx, flex: 1 }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -107,7 +123,7 @@ export default function GlobalSearch() {
                   : <SearchIcon sx={{ fontSize: 16, color: G.textMuted }} />}
               </InputAdornment>
             ),
-            endAdornment: q ? (
+            endAdornment: (q || selectedDate) ? (
               <InputAdornment position="end">
                 <IconButton size="small" onClick={handleClear} sx={{ color: G.textMuted }}>
                   <CloseIcon sx={{ fontSize: 14 }} />
@@ -116,6 +132,21 @@ export default function GlobalSearch() {
             ) : null,
           }}
         />
+        {/* ช่องเลือกวันที่ */}
+        <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="th">
+          <DatePicker
+            value={selectedDate}
+            onChange={setSelectedDate}
+            slotProps={{
+              textField: {
+                size: 'small',
+                placeholder: 'วันที่',
+                sx: { ...inputBoxSx, width: { xs: 110, sm: 150 } },
+                onFocus: () => { if (results) setOpen(true); },
+              },
+            }}
+          />
+        </LocalizationProvider>
 
         <Popper
           open={open && !!results}
@@ -131,7 +162,7 @@ export default function GlobalSearch() {
             {results && results.total === 0 ? (
               <Box sx={{ p: 3, textAlign: 'center' }}>
                 <Typography sx={{ fontSize: 13, color: G.textMuted }}>
-                  ไม่พบผลลัพธ์สำหรับ "{q}"
+                  ไม่พบผลลัพธ์{q ? ` สำหรับ "${q}"` : ''}{selectedDate ? ` ในวันที่ ${selectedDate.format('DD/MM/YYYY')}` : ''}
                 </Typography>
               </Box>
             ) : (
