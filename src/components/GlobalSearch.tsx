@@ -24,14 +24,6 @@ dayjs.extend(utc);
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
-const ENTITY_LABEL: Record<SearchHit['entity'], string> = {
-  bar_gold: 'ทองแท่ง',
-  ornament_gold: 'ทองรูปพรรณ',
-  pawn: 'จำนำ',
-  wholesaler: 'ร้านส่ง',
-  wholesaler_pickup: 'หยิบทอง',
-};
-
 const SECTION_ORDER: { key: keyof SearchResults; label: string }[] = [
   { key: 'bar_gold',          label: 'ทองแท่ง' },
   { key: 'ornament_gold',     label: 'ทองรูปพรรณ' },
