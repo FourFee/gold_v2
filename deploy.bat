@@ -1,4 +1,4 @@
-de@echo off
+@echo off
 echo Deploying to server...
 
 echo [1/3] Building frontend...
@@ -9,16 +9,19 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [2/3] Uploading frontend...
-ssh root@178.128.80.147 "mkdir -p /var/www/html/build"
-scp -r build/ root@178.128.80.147:/var/www/html/
+echo [2/3] Uploading frontend (Compressed tar.gz)...
+tar -czf build.tar.gz -C build .
+scp build.tar.gz root@178.128.80.147:/var/www/html/
+if exist build.tar.gz del build.tar.gz
 
-echo [2.5/3] Copying build to web root...
-ssh root@178.128.80.147 "cp -rf /var/www/html/build/* /var/www/html/ && chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html"
+echo [2.5/3] Extracting build on server...
+ssh root@178.128.80.147 "cd /var/www/html && tar -xzf build.tar.gz && rm build.tar.gz && chown -R www-data:www-data /var/www/html && chmod -R 755 /var/www/html"
 
-echo [3/3] Uploading backend (excluding database)...
-scp backend/*.py backend/routers/*.py backend/requirements.txt root@178.128.80.147:~/gold/backend/
-scp -r backend/routers/ root@178.128.80.147:~/gold/backend/
+echo [3/3] Syncing backend code...
+git add .
+git commit -m "auto deploy"
+git push
+ssh root@178.128.80.147 "cd ~/gold && git pull"
 
 echo Done! Deploy complete.
 pause

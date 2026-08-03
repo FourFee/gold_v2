@@ -9,7 +9,7 @@ router = APIRouter(prefix="/print", tags=["print"])
 PRINTER_IP   = os.environ.get("PRINTER_IP",   "192.168.1.100")
 PRINTER_PORT = int(os.environ.get("PRINTER_PORT", "9100"))
 SHOP_NAME    = os.environ.get("SHOP_NAME",    "ห้างทองจินดา")
-SHOP_PHONE   = os.environ.get("SHOP_PHONE",   "0x-xxxx-xxxx")
+SHOP_PHONE   = os.environ.get("SHOP_PHONE",   "038-222299")
 
 TYPE_LABEL = {
     "pawn":     "ใบรับจำนำ",
@@ -30,7 +30,7 @@ SIZE_NORM   = b"\x1d\x21\x00"
 CUT         = b"\x1d\x56\x41\x10"
 TH_CODEPAGE = b"\x1b\x74\x15"   # TIS-620 (code page 21)
 
-SEP = b"--------------------------------" + LF
+SEP = b"------------------------------------------------" + LF
 
 
 def th(text: str) -> bytes:
@@ -100,7 +100,7 @@ def build_escpos(data: PrintData) -> bytes:
     if data.purity:
         buf += th(f"ความบริสุทธิ์: {data.purity}") + LF
     if data.weight is not None:
-        buf += th(f"น้ำหนัก: {fmt_money(data.weight)} กรัม") + LF
+        buf += th(f"น้ำหนัก: {fmt_money(data.weight)} บาท") + LF
     if data.amount is not None:
         buf += BOLD_ON
         buf += th(f"ยอดรวม: {fmt_money(data.amount)} บาท") + LF

@@ -102,7 +102,7 @@ export default function BarGoldPage() {
     try {
       await saveToServer(v.wb, v.a);
       notify("บันทึกเรียบร้อย", "success");
-      print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightGram) || 0, amount: v.a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
+      print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightBaht) || 0, amount: v.a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
       clearForm();
       navigate("/bar-list");
     } catch (err) { notify((err as Error).message, "error"); }
@@ -259,7 +259,7 @@ export default function BarGoldPage() {
                 {saving ? "กำลังบันทึก..." : "บันทึก"}
               </Button>
               <Button startIcon={<PrintIcon />} variant="outlined"
-                onClick={() => print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightGram) || 0, amount: parseFloat(form.amount) || 0, goldType: mode === "buy" ? "ขายออก" : "ซื้อเข้า", remark: form.remark })}
+                onClick={() => print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightBaht) || 0, amount: parseFloat(form.amount) || 0, goldType: mode === "buy" ? "ขายออก" : "ซื้อเข้า", remark: form.remark })}
                 sx={{ borderRadius: '10px', borderColor: G.border, color: G.textSub, minHeight: 44,
                   '&:hover': { borderColor: G.accent, color: G.accent } }}>
                 พิมพ์ใบเสร็จ
