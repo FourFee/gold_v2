@@ -6,7 +6,7 @@ import {
   Skeleton, InputAdornment, Tooltip,
 } from "@mui/material";
 import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
-import { Edit, Save, Delete, Search as SearchIcon, TrendingUp, TrendingDown, Refresh, Add } from "@mui/icons-material";
+import { Edit, Save, Delete, Search as SearchIcon, TrendingUp, TrendingDown, Refresh, Add, Print } from "@mui/icons-material";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTheme } from "@mui/material/styles";
 import dayjs, { Dayjs } from 'dayjs';
@@ -21,6 +21,7 @@ import { makeG } from "../utils/dashboardTokens";
 import { dateHaystack, buildSearchFilter } from "../utils/listFilter";
 import { BarGoldRecord } from "../types";
 import PeriodNavigator, { Period, isInPeriod } from "../components/PeriodNavigator";
+import { usePrint } from "../components/ReceiptPrint";
 
 dayjs.extend(utc);
 
@@ -43,6 +44,7 @@ export default function BarGoldList() {
   const G = makeG(theme);
   const navigate = useNavigate();
   const { snackbar, notify, handleClose } = useNotify();
+  const { print } = usePrint();
 
   const [data, setData]             = useState<BarGoldRecord[]>([]);
   const [mode, setMode]             = useState<"buy" | "sell">("buy");
@@ -477,6 +479,31 @@ export default function BarGoldList() {
                           </IconButton>
                         </Tooltip>
                       )}
+
+                      {/* ✅ ปุ่มพิมพ์ — เพิ่มตรงนี้ */}
+                      {editIndex !== i && (
+                        <Tooltip title="พิมพ์ใบเสร็จ" arrow>
+                          <IconButton size="small"
+                            onClick={() => print({
+                              type: "bar",
+                              firstname: item.firstname,
+                              lastname:  item.lastname,
+                              idcard:    item.idcard,
+                              phone:     item.phone,
+                              address:   item.address,
+                              weight:    item.weightBaht,
+                              amount:    item.amount,
+                              goldType:  mode === 'buy' ? 'ขายออก (ร้านขายให้ลูกค้า)' : 'ซื้อเข้า (ลูกค้าขายให้ร้าน)',
+                              remark: item.remark ?? undefined,
+                              date:      dayjs.utc(item.date).local().format(),
+                            })}
+                            sx={{ color: G.brass, bgcolor: alpha(G.brass, 0.1), borderRadius: '7px',
+                              '&:hover': { bgcolor: alpha(G.brass, 0.18) } }}>
+                            <Print sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+
                       <Tooltip title="ลบ" arrow>
                         <IconButton size="small" onClick={() => handleDelete(item.id)} disabled={deleting === item.id}
                           sx={{ color: G.danger, bgcolor: alpha(G.danger, 0.1), borderRadius: '7px',

@@ -27,29 +27,29 @@ export interface ReceiptData {
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  pawn:     "ใบรับจำนำ",
-  bar:      "ใบซื้อขายทองแท่ง",
+  pawn: "ใบรับจำนำ",
+  bar: "ใบซื้อขายทองแท่ง",
   ornament: "ใบซื้อขายทองรูปพรรณ",
-  redeem:   "ใบไถ่จำนำ",
+  redeem: "ใบไถ่จำนำ",
 };
 
 function buildReceiptHtml(data: ReceiptData): string {
-  const shopName  = data.shopName  || "ห้างทองจินดา";
-  const dateStr   = data.date ? dayjs(data.date).format("DD/MM/YYYY HH:mm") : dayjs().format("DD/MM/YYYY HH:mm");
+  const shopName = data.shopName || "ห้างทองจินดา";
+  const dateStr = data.date ? dayjs(data.date).format("DD/MM/YYYY HH:mm") : dayjs().format("DD/MM/YYYY HH:mm");
   const typeLabel = TYPE_LABEL[data.type] || "ใบเสร็จ";
-  const fullName  = [data.firstname, data.lastname].filter(Boolean).join(" ") || "-";
+  const fullName = [data.firstname, data.lastname].filter(Boolean).join(" ") || "-";
   const fmt = (n?: number) => n != null ? n.toLocaleString("th-TH", { minimumFractionDigits: 2 }) : "-";
 
   const rows: [string, string][] = [];
 
-  if (data.weight)       rows.push(["น้ำหนัก",     `${fmt(data.weight)} ${data.weightUnit || "บาท"}`]);
-  if (data.pricePerGram) rows.push(["ราคา/กรัม",   `${fmt(data.pricePerGram)} บาท`]);
-  if (data.goldType)     rows.push(["ประเภททอง",   data.goldType]);
-  if (data.purity)       rows.push(["ความบริสุทธิ์", data.purity]);
-  if (data.amount)       rows.push(["ยอดรวม",      `${fmt(data.amount)} บาท`]);
-  if (data.interest)     rows.push(["ดอกเบี้ย/เดือน", `${fmt(data.interest)} บาท`]);
-  if (data.dueDate)      rows.push(["วันครบกำหนด", data.dueDate]);
-  if (data.remark)       rows.push(["หมายเหตุ",    data.remark]);
+  if (data.weight) rows.push(["น้ำหนัก", `${fmt(data.weight)} ${data.weightUnit || "บาท"}`]);
+  if (data.pricePerGram) rows.push(["ราคา/กรัม", `${fmt(data.pricePerGram)} บาท`]);
+  if (data.goldType) rows.push(["ประเภททอง", data.goldType]);
+  if (data.purity) rows.push(["ความบริสุทธิ์", data.purity]);
+  if (data.amount) rows.push(["ยอดรวม", `${fmt(data.amount)} บาท`]);
+  if (data.interest) rows.push(["ดอกเบี้ย/เดือน", `${fmt(data.interest)} บาท`]);
+  if (data.dueDate) rows.push(["วันครบกำหนด", data.dueDate]);
+  if (data.remark) rows.push(["หมายเหตุ", data.remark]);
 
   const rowsHtml = rows.map(([label, val]) => `
     <tr>
@@ -114,7 +114,7 @@ function buildReceiptHtml(data: ReceiptData): string {
       <td style="padding:1.5mm 0;text-align:right;font-weight:600">${fullName}</td>
     </tr>
     ${data.idcard ? `<tr><td style="padding:1.5mm 0;color:#333">เลขบัตร</td><td style="padding:1.5mm 0;text-align:right">${data.idcard}</td></tr>` : ""}
-    ${data.phone  ? `<tr><td style="padding:1.5mm 0;color:#333">โทร</td><td style="padding:1.5mm 0;text-align:right">${data.phone}</td></tr>` : ""}
+    ${data.phone ? `<tr><td style="padding:1.5mm 0;color:#333">โทร</td><td style="padding:1.5mm 0;text-align:right">${data.phone}</td></tr>` : ""}
   </table>
 
   <div class="line"></div>
