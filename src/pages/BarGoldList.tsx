@@ -481,7 +481,7 @@ export default function BarGoldList() {
                       )}
 
                       {/* ✅ ปุ่มพิมพ์ — เพิ่มตรงนี้ */}
-                      {editIndex !== i && (
+                      {editIndex === null && (
                         <Tooltip title="พิมพ์ใบเสร็จ" arrow>
                           <IconButton size="small"
                             onClick={() => print({
