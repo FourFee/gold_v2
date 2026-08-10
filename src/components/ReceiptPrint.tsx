@@ -85,11 +85,22 @@ function buildReceiptHtml(data: ReceiptData): string {
 </style>
 </head>
 <body>
-  <div class="logo-container">
-    <svg viewBox="0 0 100 100" style="width:50%; height:auto;" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="50" cy="50" r="47" fill="#8B0000" stroke="#D4AF37" stroke-width="2.5"/>
-      <circle cx="50" cy="50" r="42" fill="none" stroke="#D4AF37" stroke-width="1" stroke-dasharray="2 1.5"/>
-      <text x="50" y="58" fill="#FFD700" font-size="32" font-weight="bold" font-family="'Times New Roman', serif" text-anchor="middle" letter-spacing="1">JD</text>
+  <div class="logo-container" style="display: inline-block; width: 80px; height: 80px;">
+    <svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- วงกลมพื้นหลัง -->
+      <circle cx="50" cy="50" r="46" fill="#8B0000" stroke="#D4AF37" stroke-width="2.5"/>
+      
+      <!-- ตัวอักษร JD จัดกึ่งกลางพอดี -->
+      <text 
+        x="50" 
+        y="50" 
+        fill="#FFD700" 
+        font-size="36" 
+        font-weight="bold" 
+        font-family="'Times New Roman', Times, serif" 
+        text-anchor="middle" 
+        dominant-baseline="central" 
+        letter-spacing="1">JD</text>
     </svg>
   </div>
   <div class="center">
