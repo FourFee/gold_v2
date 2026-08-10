@@ -71,6 +71,19 @@ function buildReceiptHtml(data: ReceiptData): string {
     color: #111;
     margin: 0; padding: 0;
   }
+
+  /* จัดการเรื่องโลโก้ให้ตรงสเปกกระดาษ 80mm */
+  .logo-container { 
+    text-align: center; 
+    margin: 0 auto 3mm auto; 
+    width: 100%;
+  }
+  .logo-container svg { 
+    width: 55px;  /* ปรับขนาดโลโก้ให้พอดีกับสลิป 80mm */
+    height: 55px; 
+    display: inline-block;
+  }
+
   .center { text-align: center; }
   .line   { border-top: 1px dashed #666; margin: 3mm 0; }
   .shop   { font-size: 18px; font-weight: 700; margin-bottom: 0.5mm; color: #111; }
@@ -85,12 +98,12 @@ function buildReceiptHtml(data: ReceiptData): string {
 </style>
 </head>
 <body>
-  <div class="logo-container" style="display: inline-block; width: 80px; height: 80px;">
-    <svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+  <div class="logo-container">
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
       <!-- วงกลมพื้นหลัง -->
       <circle cx="50" cy="50" r="46" fill="#8B0000" stroke="#D4AF37" stroke-width="2.5"/>
       
-      <!-- ตัวอักษร JD จัดกึ่งกลางพอดี -->
+      <!-- ตัวอักษร JD -->
       <text 
         x="50" 
         y="50" 
