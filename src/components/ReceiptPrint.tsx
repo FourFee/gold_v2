@@ -81,12 +81,16 @@ function buildReceiptHtml(data: ReceiptData): string {
   .sign-line { border-top: 1px solid #333; margin-top: 9mm; font-size: 12px; padding-top: 1.5mm; }
   .footer { text-align: center; font-size: 11px; color: #444; margin-top: 4mm; }
   .logo-container { text-align: center; margin-bottom: 2mm; }
-  .logo-container img { width: 35%; height: auto; }
+  .logo-container svg { width: 50%; height: auto; }
 </style>
 </head>
 <body>
   <div class="logo-container">
-    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABAAAAAQACAYAAAB/HSuD..." style="width:35%;height:auto;" />
+    <svg viewBox="0 0 100 100" style="width:50%; height:auto;" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="50" cy="50" r="47" fill="#8B0000" stroke="#D4AF37" stroke-width="2.5"/>
+      <circle cx="50" cy="50" r="42" fill="none" stroke="#D4AF37" stroke-width="1" stroke-dasharray="2 1.5"/>
+      <text x="50" y="58" fill="#FFD700" font-size="32" font-weight="bold" font-family="'Times New Roman', serif" text-anchor="middle" letter-spacing="1">JD</text>
+    </svg>
   </div>
   <div class="center">
     <div class="shop">${shopName}</div>
