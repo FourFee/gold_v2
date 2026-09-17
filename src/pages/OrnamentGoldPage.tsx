@@ -11,7 +11,6 @@ import { usePrint } from "../components/ReceiptPrint";
 import PrintIcon from "@mui/icons-material/Print";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
-import { validateThaiId } from "../utils/validateThaiId";
 import CustomerForm from "../components/CustomerForm";
 import { makeG } from "../utils/dashboardTokens";
 
@@ -43,7 +42,6 @@ export default function OrnamentGoldPage() {
     const w = parseFloat(form.weight);
     const a = parseFloat(form.amount);
     if (!form.firstname || !form.idcard) { notify("กรุณากรอกชื่อและเลขบัตร", "error"); return null; }
-    if (form.idcard && !validateThaiId(form.idcard.replace(/\D/g, ""))) { notify("เลขบัตรประชาชนไม่ถูกต้อง", "error"); return null; }
     if (isNaN(w) || w <= 0) { notify("น้ำหนักต้องมากกว่า 0", "error"); return null; }
     if (isNaN(a) || a <= 0) { notify("จำนวนเงินต้องมากกว่า 0", "error"); return null; }
     return { w, a };

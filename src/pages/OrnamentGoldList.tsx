@@ -9,7 +9,7 @@ import {
   InputAdornment, Tooltip, Button, Grid, alpha,
 } from "@mui/material";
 import { Dialog, DialogTitle, DialogContent, DialogActions } from "@mui/material";
-import { Delete, Edit, Save, Search as SearchIcon, TrendingUp, TrendingDown, Refresh, Add } from "@mui/icons-material";
+import { Delete, Edit, Save, Search as SearchIcon, TrendingUp, TrendingDown, Refresh, Add, Print } from "@mui/icons-material";
 import { useTheme } from "@mui/material/styles";
 import { Snackbar, Alert } from "@mui/material";
 import { API_BASE } from "../config";
@@ -18,6 +18,7 @@ import { makeG } from "../utils/dashboardTokens";
 import { dateHaystack, buildSearchFilter } from "../utils/listFilter";
 import { OrnamentGoldRecord } from "../types";
 import PeriodNavigator, { Period, isInPeriod } from "../components/PeriodNavigator";
+import { usePrint } from "../components/ReceiptPrint";
 
 dayjs.extend(utc);
 
@@ -33,6 +34,7 @@ export default function OrnamentGoldList() {
   const G = makeG(theme);
   const navigate = useNavigate();
   const { snackbar, notify, handleClose } = useNotify();
+  const { print } = usePrint();
 
   const [data, setData]             = useState<OrnamentGoldRecord[]>([]);
   const [mode, setMode]             = useState<"buy" | "sell">("buy");
@@ -391,6 +393,28 @@ export default function OrnamentGoldList() {
                           <IconButton size="small" onClick={() => startEdit(i)}
                             sx={{ color: G.accent, bgcolor: alpha(G.accent, 0.1), borderRadius: '7px', '&:hover': { bgcolor: alpha(G.accent, 0.18) } }}>
                             <Edit sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                      {editIndex === null && (
+                        <Tooltip title="พิมพ์ใบเสร็จ" arrow>
+                          <IconButton size="small"
+                            onClick={() => print({
+                              type: "ornament",
+                              firstname: item.firstname,
+                              lastname:  item.lastname,
+                              idcard:    item.idcard,
+                              phone:     item.phone,
+                              address:   item.address,
+                              weight:    Number(item.weight),
+                              amount:    Number(item.amount),
+                              goldType:  mode === 'buy' ? 'ขายออก (ร้านขายให้ลูกค้า)' : 'ซื้อเข้า (ลูกค้าขายให้ร้าน)',
+                              remark: item.remark ?? undefined,
+                              date:      item.date,
+                            })}
+                            sx={{ color: G.brass, bgcolor: alpha(G.brass, 0.1), borderRadius: '7px',
+                              '&:hover': { bgcolor: alpha(G.brass, 0.18) } }}>
+                            <Print sx={{ fontSize: 16 }} />
                           </IconButton>
                         </Tooltip>
                       )}
