@@ -30,13 +30,13 @@ class BarGoldCreate(BaseModel):
 class OrnamentGoldCreate(BaseModel):
     date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     firstname: str
-    lastname: str
-    idcard: str
-    address: str
-    phone: str
+    lastname: Optional[str] = ""
+    idcard: Optional[str] = ""
+    address: Optional[str] = ""
+    phone: Optional[str] = ""
     weight: float
     amount: float
-    remark: str
+    remark: Optional[str] = ""
     mode: Literal["buy", "sell"]
 
 # 📌 แก้ไข: ลบ id ออกจาก AllGoldTransactionsCreate

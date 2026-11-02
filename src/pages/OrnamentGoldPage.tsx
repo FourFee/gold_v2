@@ -47,14 +47,30 @@ export default function OrnamentGoldPage() {
     return { w, a };
   };
 
+  
   const saveToServer = async (w: number, a: number) => {
     const res = await fetch(`${API_BASE}/ornament-gold/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...form, mode, weight: w, amount: a }),
+      body: JSON.stringify({
+        ...form,
+        idcard: form.idcard?.trim() || null,
+        mode,
+        weight: w,
+        amount: a,
+      }),
     });
-    if (!res.ok) throw new Error("บันทึกไม่สำเร็จ");
+
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(
+        detail?.detail
+          ? String(detail.detail)
+          : "บันทึกไม่สำเร็จ"
+      );
+    }
   };
+
 
   const handleSave = async () => {
     const v = validate(); if (!v) return;
