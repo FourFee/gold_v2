@@ -41,7 +41,7 @@ export default function OrnamentGoldPage() {
   const validate = () => {
     const w = parseFloat(form.weight);
     const a = parseFloat(form.amount);
-    if (!form.firstname ) { notify("กรุณากรอกชื่อและเลขบัตร", "error"); return null; }
+    if (!form.firstname) { notify("กรุณากรอกชื่อ", "error"); return null; }
     if (isNaN(w) || w <= 0) { notify("น้ำหนักต้องมากกว่า 0", "error"); return null; }
     if (isNaN(a) || a <= 0) { notify("จำนวนเงินต้องมากกว่า 0", "error"); return null; }
     return { w, a };
@@ -54,7 +54,6 @@ export default function OrnamentGoldPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...form,
-        idcard: form.idcard?.trim() || null,
         mode,
         weight: w,
         amount: a,
