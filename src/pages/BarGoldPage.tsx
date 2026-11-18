@@ -17,6 +17,9 @@ import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 
 import CustomerForm from "../components/CustomerForm";
 import { makeG } from "../utils/dashboardTokens";
+import AmlReportPanel, { AML_EXTRA_INITIAL, type AmlExtra } from "../components/AmlReportPanel";
+import { AML_SHOP, AML_THRESHOLD } from "../utils/amlConfig";
+import { amlFileName, makeAmlReportBlob, openPdfBlob, type AmlReportInput } from "../utils/amlReport";
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
@@ -41,6 +44,13 @@ export default function BarGoldPage() {
   const [mode, setMode] = useState<"buy" | "sell">("buy");
   const [saving, setSaving] = useState(false);
   const [dateEdited, setDateEdited] = useState(false);
+  const [aml, setAml] = useState<AmlExtra>(AML_EXTRA_INITIAL);
+  const [generatingAml, setGeneratingAml] = useState(false);
+
+  // ธุรกรรมเงินสดตั้งแต่ 2 ล้านขึ้นไป (ทั้งขายออกและซื้อเข้า) ต้องรายงาน ปปง.
+  const amountNum = parseFloat(form.amount);
+  const overThreshold = !isNaN(amountNum) && amountNum >= AML_THRESHOLD;
+  const amlRequired = overThreshold && aml.cash;
 
   useEffect(() => { setForm(prev => ({ ...prev, date: "" })); }, []);
 
@@ -60,7 +70,45 @@ export default function BarGoldPage() {
     if (!form.firstname) { notify("กรุณากรอกชื่อ", "error"); return null; }
     if (isNaN(wb) || wb <= 0) { notify("น้ำหนักต้องมากกว่า 0", "error"); return null; }
     if (isNaN(a)  || a  <= 0) { notify("จำนวนเงินต้องมากกว่า 0", "error"); return null; }
+    if (amlRequired) {
+      if (!form.idcard.trim()) {
+        notify(`เงินสดตั้งแต่ ${AML_THRESHOLD.toLocaleString()} บาท ต้องกรอกเลขบัตรประชาชน/หนังสือเดินทาง`, "error");
+        return null;
+      }
+      if (!aml.nationality.trim()) { notify("กรุณากรอกสัญชาติ (ใช้ในแบบ ปปง.)", "error"); return null; }
+      if (aml.idType === "other" && !aml.idTypeOther.trim()) { notify("กรุณาระบุชนิดหลักฐาน", "error"); return null; }
+    }
     return { wb, a };
+  };
+
+  const buildAmlInput = (): AmlReportInput => {
+    const toDate = (s: string) => (s && dayjs(s).isValid() ? dayjs(s).toDate() : null);
+    return {
+      shop: AML_SHOP,
+      mode,
+      date: dateEdited && form.date && dayjs(form.date).isValid() ? dayjs(form.date).toDate() : new Date(),
+      sequenceNo: aml.sequenceNo,
+      firstname: form.firstname, lastname: form.lastname, nationality: aml.nationality,
+      address: form.address, phone: form.phone, occupation: aml.occupation,
+      idType: aml.idType, idTypeOther: aml.idTypeOther, idNumber: form.idcard,
+      idIssuedBy: aml.idIssuedBy, idIssueDate: toDate(aml.idIssueDate), idExpiryDate: toDate(aml.idExpiryDate),
+      weightBaht: parseFloat(form.weightBaht) || 0,
+      amount: parseFloat(form.amount) || 0,
+      beneficiary: aml.beneficiary,
+      purpose: aml.purpose.trim() || (mode === "buy" ? "ซื้อทองคำแท่ง" : "ขายทองคำแท่ง"),
+    };
+  };
+
+  // สร้าง PDF ก่อนบันทึก: ถ้าสร้างไม่สำเร็จจะหยุดก่อน ไม่เกิดรายการซ้ำเมื่อกดบันทึกใหม่
+  const prepareAml = async () => (amlRequired ? makeAmlReportBlob(buildAmlInput()) : null);
+  const showAml = (blob: Blob | null) => { if (blob) openPdfBlob(blob, amlFileName(buildAmlInput().date)); };
+
+  const handleGenerateAml = async () => {
+    const v = validate(); if (!v) return;
+    setGeneratingAml(true);
+    try { showAml(await makeAmlReportBlob(buildAmlInput())); }
+    catch (err) { notify((err as Error).message, "error"); }
+    finally { setGeneratingAml(false); }
   };
 
   const saveToServer = async (wb: number, a: number) => {
@@ -88,7 +136,9 @@ export default function BarGoldPage() {
     const v = validate(); if (!v) return;
     setSaving(true);
     try {
+      const amlBlob = await prepareAml();
       await saveToServer(v.wb, v.a);
+      showAml(amlBlob);
       notify("บันทึกเรียบร้อย", "success");
       clearForm();
       navigate("/bar-list");
@@ -100,7 +150,9 @@ export default function BarGoldPage() {
     const v = validate(); if (!v) return;
     setSaving(true);
     try {
+      const amlBlob = await prepareAml();
       await saveToServer(v.wb, v.a);
+      showAml(amlBlob);
       notify("บันทึกเรียบร้อย", "success");
       print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightBaht) || 0, amount: v.a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
       clearForm();
@@ -119,7 +171,7 @@ export default function BarGoldPage() {
     } catch { notify("ดึงข้อมูลบัตรล้มเหลว", "error"); }
   };
 
-  const handleClear = () => { clearForm(); setDateEdited(false); };
+  const handleClear = () => { clearForm(); setDateEdited(false); setAml(AML_EXTRA_INITIAL); };
 
   const inputSx = {
     '& .MuiOutlinedInput-root': {
@@ -247,6 +299,12 @@ export default function BarGoldPage() {
               sx={inputSx}
             />
           </Grid>
+          {overThreshold && (
+            <Grid item xs={12}>
+              <AmlReportPanel value={aml} onChange={setAml} mode={mode} amount={amountNum}
+                onGenerate={handleGenerateAml} generating={generatingAml} inputSx={inputSx} />
+            </Grid>
+          )}
           <Grid item xs={12}>
             <TextField fullWidth multiline rows={2} label="หมายเหตุ" name="remark"
               value={form.remark} onChange={handleChange} sx={inputSx} />
