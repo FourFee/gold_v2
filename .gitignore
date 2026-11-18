@@ -52,3 +52,10 @@ gold_data.db
 .cache/
 *.tsbuildinfo
 .eslintcache
+# Database / data dumps - never commit customer data
+*.db
+*.db-journal
+*.sqlite
+*.sql
+*.tgz
+server_backend/
