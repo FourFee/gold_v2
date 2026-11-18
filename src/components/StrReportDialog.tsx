@@ -49,7 +49,7 @@ export default function StrReportDialog({ open, onClose, tx, existing, initialEx
     setReasons((prev) => (prev.includes(r) ? prev.filter((x) => x !== r) : [...prev, r]));
 
   const validate = (): string | null => {
-    if (!tx.idcard.trim()) return "รายการนี้ไม่มีเลขบัตร — แก้ไขรายการให้มีเลขบัตร/หนังสือเดินทางก่อน";
+    // ไม่มีเลขบัตรก็ต้องรายงานได้ (ลูกค้าที่น่าสงสัยมักไม่ยอมแสดงบัตร) — ให้เขียนไว้ในข้อเท็จจริงแทน
     if (!extra.nationality.trim()) return "กรุณากรอกสัญชาติ";
     if (extra.idType === "other" && !extra.idTypeOther.trim()) return "กรุณาระบุชนิดหลักฐาน";
     if (reasons.length === 0) return "กรุณาเลือกเหตุอันควรสงสัยอย่างน้อย 1 ข้อ";
@@ -109,6 +109,11 @@ export default function StrReportDialog({ open, onClose, tx, existing, initialEx
         </Typography>
       </DialogTitle>
       <DialogContent dividers sx={{ borderColor: G.border }}>
+        {!tx.idcard.trim() && (
+          <Alert severity="info" sx={{ mb: 2 }}>
+            รายการนี้ไม่มีเลขบัตร — รายงานได้ตามปกติ ให้เขียนในข้อเท็จจริงว่าลูกค้าไม่แสดงหลักฐาน หรือแก้ไขรายการเพิ่มเลขบัตรก่อนถ้ามี
+          </Alert>
+        )}
         <Alert severity="warning" sx={{ mb: 2 }}>
           <b>ห้ามแจ้งหรือบอกใบ้ให้ลูกค้าทราบ</b>ว่ามีการรายงาน และอย่าพิมพ์ฟอร์มนี้ต่อหน้าลูกค้า
           รายงานได้ทุกยอดเงิน ไม่ต้องถึง 2 ล้าน
