@@ -21,6 +21,7 @@ from models import (
     AllGoldTransaction,
     WholesalerPickup,
     Wholesaler,
+    AmlReport,
 )
 
 # Entity ที่จะ track — map class → ชื่อ entity ใน log
@@ -31,6 +32,7 @@ TRACKED = {
     AllGoldTransaction:   "all_gold_transactions",
     WholesalerPickup:     "wholesaler_pickup",
     Wholesaler:           "wholesaler",
+    AmlReport:            "aml_report",
 }
 
 

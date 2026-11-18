@@ -3,19 +3,22 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database import get_db
 from models import OrnamentGold
-from schemas import OrnamentGoldCreate
+from schemas import OrnamentGoldCreate, OrnamentGoldCreateWithAml
+from routers.aml import create_aml_record, row_with_aml
 from sqlalchemy import desc, asc
 
 router = APIRouter()
 
-# ✅ สร้างข้อมูลทองรูปพรรณ
+# ✅ สร้างข้อมูลทองรูปพรรณ (ถ้ายอดตั้งแต่ 2 ล้าน frontend จะส่ง aml มาด้วย)
 @router.post("/ornament-gold/create")
-def create_ornament_gold(data: OrnamentGoldCreate, db: Session = Depends(get_db)):
-    obj = OrnamentGold(**data.model_dump())
+def create_ornament_gold(data: OrnamentGoldCreateWithAml, db: Session = Depends(get_db)):
+    obj = OrnamentGold(**data.model_dump(exclude={"aml"}))
     db.add(obj)
+    db.flush()
+    rec = create_aml_record(db, "ornament_gold", obj.id, obj.date, data.aml) if data.aml else None
     db.commit()
     db.refresh(obj)
-    return obj
+    return row_with_aml(obj, rec)
 
 # ✅ อ่านข้อมูลทั้งหมด
 @router.get("/ornament-gold/list")

@@ -39,6 +39,18 @@ class OrnamentGoldCreate(BaseModel):
     remark: Optional[str] = ""
     mode: Literal["buy", "sell"]
 
+class AmlIn(BaseModel):
+    """ข้อมูลแบบ ปปง. ที่ส่งมาพร้อมการบันทึกรายการ (เฉพาะยอดตั้งแต่ 2 ล้าน)"""
+    status: Literal["report", "exempt_transfer", "exempt_other"]
+    reason: str = ""
+    data: dict = Field(default_factory=dict)
+
+class BarGoldCreateWithAml(BarGoldCreate):
+    aml: Optional[AmlIn] = None
+
+class OrnamentGoldCreateWithAml(OrnamentGoldCreate):
+    aml: Optional[AmlIn] = None
+
 # 📌 แก้ไข: ลบ id ออกจาก AllGoldTransactionsCreate
 class AllGoldTransactionsCreate(BaseModel):
     date: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))  # เรียก utcnow() ใหม่ทุกครั้งที่สร้าง record

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Enum, ForeignKey, Boolean
+from sqlalchemy import Column, Integer, String, Float, Enum, ForeignKey, Boolean, UniqueConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy import DateTime
@@ -97,6 +97,26 @@ class WholesalerPickup(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     wholesaler = relationship("Wholesaler", back_populates="pickups")
+
+
+class AmlReport(Base):
+    """แบบรายงาน ปปง.1-05-2 (ธุรกรรมเงินสดตั้งแต่ 2 ล้าน) ของรายการทองแท่ง/ทองรูปพรรณ
+
+    status: report = ส่งรายงาน (มีเลขลำดับ), exempt_transfer = โอน/เช็ค, exempt_other = ไม่ต้องส่ง (เช่น ร้านซื้อเอง)
+    seq รันใหม่ทุกเดือน (ปี พ.ศ. + เดือน ของวันที่ทำธุรกรรม ตามเวลาไทย) ใช้ร่วมกันทั้งทองแท่งและทองรูปพรรณ
+    """
+    __tablename__ = "aml_reports"
+    __table_args__ = (UniqueConstraint("year_be", "month", "seq", name="uq_aml_seq"),)
+    id = Column(Integer, primary_key=True, index=True)
+    entity = Column(String, nullable=False, index=True)      # bar_gold / ornament_gold
+    entity_id = Column(Integer, nullable=False, index=True)
+    status = Column(String, nullable=False)
+    reason = Column(String, default="")
+    year_be = Column(Integer, nullable=True)
+    month = Column(Integer, nullable=True)
+    seq = Column(Integer, nullable=True)
+    data = Column(String, default="{}")                      # JSON snapshot ข้อมูลที่ใช้พิมพ์ฟอร์ม
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
 class AuditLog(Base):

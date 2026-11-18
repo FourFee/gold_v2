@@ -4,21 +4,24 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc
 from database import get_db
 from models import BarGold
-from schemas import BarGoldCreate
+from schemas import BarGoldCreate, BarGoldCreateWithAml
+from routers.aml import create_aml_record, row_with_aml
 from datetime import datetime, timedelta, timezone
 
 BKK_TZ = timezone(timedelta(hours=7))
 
 router = APIRouter()
 
-# ✅ Create
+# ✅ Create (ถ้ายอดตั้งแต่ 2 ล้าน frontend จะส่ง aml มาด้วย — ออกเลข ปปง. ใน transaction เดียวกัน)
 @router.post("/bar-gold/create")
-def create_bar_gold(data: BarGoldCreate, db: Session = Depends(get_db)):
-    obj = BarGold(**data.model_dump())
+def create_bar_gold(data: BarGoldCreateWithAml, db: Session = Depends(get_db)):
+    obj = BarGold(**data.model_dump(exclude={"aml"}))
     db.add(obj)
+    db.flush()
+    rec = create_aml_record(db, "bar_gold", obj.id, obj.date, data.aml) if data.aml else None
     db.commit()
     db.refresh(obj)
-    return obj
+    return row_with_aml(obj, rec)
 
 # ✅ Read All (แก้ไขส่วนการคำนวณ start_date)
 @router.get("/bar-gold/list")
