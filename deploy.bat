@@ -28,7 +28,7 @@ tar -czf backend_code.tar.gz -C backend --exclude=__pycache__ --exclude=*.pyc --
 scp backend_code.tar.gz %SERVER%:/tmp/
 if %errorlevel% neq 0 goto :fail
 if exist backend_code.tar.gz del backend_code.tar.gz
-ssh %SERVER% "cd %REMOTE_BACKEND% && tar -xzf /tmp/backend_code.tar.gz && rm /tmp/backend_code.tar.gz && sleep 4 && curl -s -o /dev/null -w 'backend check: HTTP %%{http_code} (expect 400)\n' 'http://127.0.0.1:8000/aml/list?entity=check'"
+ssh %SERVER% "cd %REMOTE_BACKEND% && tar -xzf /tmp/backend_code.tar.gz && rm /tmp/backend_code.tar.gz && (systemctl is-active --quiet gold-backend && systemctl restart gold-backend; true) && sleep 4 && curl -s -o /dev/null -w 'backend check: HTTP %%{http_code} (expect 400)\n' 'http://127.0.0.1:8000/aml/list?entity=check'"
 if %errorlevel% neq 0 goto :fail
 
 echo [4/4] Saving code to GitHub...

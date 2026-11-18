@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  เปิด usb_monitor.sh อัตโนมัติเมื่อล็อกอิน Mac (และเปิดใหม่ถ้าหยุดไป)
+  usb_monitor.sh จะเปิด ifcard_reader.py เองเมื่อเสียบเครื่องอ่านบัตร และปิดเมื่อถอด
+  ติดตั้ง: คัดลอกไฟล์นี้ไปที่ ~/Library/LaunchAgents/ แล้ว
+    launchctl load -w ~/Library/LaunchAgents/com.goldshop.idreadcard.plist
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.goldshop.idreadcard</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/nuttapard/Documents/idreadcard/usb_monitor.sh</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/nuttapard/Documents/idreadcard</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/nuttapard/Documents/idreadcard/usb_monitor.out</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/nuttapard/Documents/idreadcard/usb_monitor.out</string>
+</dict>
+</plist>
