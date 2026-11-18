@@ -16,6 +16,7 @@ export interface AmlExtra {
   idIssuedBy: string;
   idIssueDate: string;    // YYYY-MM-DD
   idExpiryDate: string;   // YYYY-MM-DD
+  idExpiryLifetime: boolean; // บัตรตลอดชีพ (อ่านจากบัตร)
   beneficiary: string;
   purpose: string;
   sequenceNo: string;
@@ -23,7 +24,7 @@ export interface AmlExtra {
 
 export const AML_EXTRA_INITIAL: AmlExtra = {
   cash: true, idType: "citizen", idTypeOther: "", nationality: "ไทย", occupation: "",
-  idIssuedBy: "", idIssueDate: "", idExpiryDate: "", beneficiary: "", purpose: "", sequenceNo: "",
+  idIssuedBy: "", idIssueDate: "", idExpiryDate: "", idExpiryLifetime: false, beneficiary: "", purpose: "", sequenceNo: "",
 };
 
 const ID_TYPES: { value: AmlIdType; label: string }[] = [
@@ -107,7 +108,9 @@ export default function AmlReportPanel({ value, onChange, mode, amount, onGenera
             </Grid>
             <Grid item xs={12} sm={4}>
               <TextField fullWidth type="date" label="วันหมดอายุ" value={value.idExpiryDate}
-                onChange={text("idExpiryDate")} InputLabelProps={{ shrink: true }} sx={inputSx} />
+                onChange={(e) => set({ idExpiryDate: e.target.value, idExpiryLifetime: false })}
+                helperText={value.idExpiryLifetime ? "บัตรตลอดชีพ" : undefined}
+                InputLabelProps={{ shrink: true }} sx={inputSx} />
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField fullWidth label="ผู้รับประโยชน์ (ถ้ามี)" value={value.beneficiary} onChange={text("beneficiary")} sx={inputSx} />

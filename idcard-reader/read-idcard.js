@@ -160,7 +160,33 @@ devices.on('device-activated', (event) => {
       );
       const address = clean(decodeText(addrResp));
 
-      const idcardData = { citizen_id: cid, name_th: nameTH, address };
+      // 5. วันออกบัตร/วันหมดอายุ + หน่วยงานที่ออกบัตร (ใช้ในแบบ ปปง.) — อ่านไม่ได้ก็ยังส่งข้อมูลหลักต่อ
+      let issue_date = '', expire_date = '', issuer = '';
+      try {
+        const datesResp = await withRetry(
+          () => sendAPDU(card, [0x80, 0xb0, 0x01, 0x67, 0x02, 0x00, 0x12], 'Read Issue/Expire'),
+          'Read Issue/Expire'
+        );
+        // 16 หลัก: YYYYMMDD (พ.ศ.) วันออกบัตร + YYYYMMDD วันหมดอายุ ("99999999" = ตลอดชีพ)
+        const digits = decodeText(datesResp.subarray(0, 16)).replace(/\D/g, '');
+        if (digits.length === 16) {
+          issue_date = digits.slice(0, 8);
+          expire_date = digits.slice(8, 16);
+        }
+      } catch (err) {
+        console.warn('⚠️ อ่านวันออก/หมดอายุบัตรไม่ได้:', err.message);
+      }
+      try {
+        const issuerResp = await withRetry(
+          () => sendAPDU(card, [0x80, 0xb0, 0x00, 0xf6, 0x02, 0x00, 0x64], 'Read Issuer'),
+          'Read Issuer'
+        );
+        issuer = clean(decodeText(issuerResp.subarray(0, Math.max(0, issuerResp.length - 2))));
+      } catch (err) {
+        console.warn('⚠️ อ่านหน่วยงานที่ออกบัตรไม่ได้:', err.message);
+      }
+
+      const idcardData = { citizen_id: cid, name_th: nameTH, address, issue_date, expire_date, issuer };
       console.log('\n📦 ข้อมูลทั้งหมด:', idcardData);
 
       // ตั้ง lastCitizenID หลัง POST สำเร็จเท่านั้น

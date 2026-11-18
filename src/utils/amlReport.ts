@@ -40,6 +40,7 @@ export interface AmlReportInput {
   idIssuedBy?: string;
   idIssueDate?: Date | null;
   idExpiryDate?: Date | null;
+  idExpiryLifetime?: boolean; // บัตรตลอดชีพ → เขียน "ตลอดชีพ" แทนวันหมดอายุ
 
   weightBaht: number;         // น้ำหนักทอง (บาทน้ำหนัก)
   amount: number;             // จำนวนเงินสด (บาท)
@@ -90,6 +91,15 @@ export function toBuddhistYear(d: Date) {
 }
 
 const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/** วันที่จากชิปบัตรประชาชน "YYYYMMDD" (พ.ศ.) → "YYYY-MM-DD" (ค.ศ.) ถ้าไม่ถูกต้องคืน "" */
+export function beDateToIso(s: string | undefined | null): string {
+  const m = /^(\d{4})(\d{2})(\d{2})$/.exec((s ?? "").trim());
+  if (!m) return "";
+  const y = Number(m[1]) - 543, mo = Number(m[2]), d = Number(m[3]);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 1900) return "";
+  return `${y}-${m[2]}-${m[3]}`;
+}
 
 /** แปลงตัวเลขเป็นคำอ่านไทย เช่น 2500000 → สองล้านห้าแสนบาทถ้วน */
 export function bahtText(value: number): string {
@@ -334,7 +344,9 @@ export async function buildAmlReportPdf(input: AmlReportInput, opts: BuildOption
     f.text(pad2(d.getMonth() + 1), 212, 230, 320.9);
     f.text(String(toBuddhistYear(d)), 231, 256, 320.9);
   }
-  if (input.idExpiryDate) {
+  if (input.idExpiryLifetime) {
+    f.text("ตลอดชีพ", 293, 356, 320.9);
+  } else if (input.idExpiryDate) {
     const d = input.idExpiryDate;
     f.text(pad2(d.getDate()), 293, 309, 320.9);
     f.text(pad2(d.getMonth() + 1), 312, 330, 320.9);

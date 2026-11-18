@@ -19,7 +19,7 @@ import CustomerForm from "../components/CustomerForm";
 import { makeG } from "../utils/dashboardTokens";
 import AmlReportPanel, { AML_EXTRA_INITIAL, type AmlExtra } from "../components/AmlReportPanel";
 import { AML_SHOP, AML_THRESHOLD } from "../utils/amlConfig";
-import { amlFileName, makeAmlReportBlob, openPdfBlob, type AmlReportInput } from "../utils/amlReport";
+import { amlFileName, beDateToIso, makeAmlReportBlob, openPdfBlob, type AmlReportInput } from "../utils/amlReport";
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
@@ -91,7 +91,7 @@ export default function BarGoldPage() {
       firstname: form.firstname, lastname: form.lastname, nationality: aml.nationality,
       address: form.address, phone: form.phone, occupation: aml.occupation,
       idType: aml.idType, idTypeOther: aml.idTypeOther, idNumber: form.idcard,
-      idIssuedBy: aml.idIssuedBy, idIssueDate: toDate(aml.idIssueDate), idExpiryDate: toDate(aml.idExpiryDate),
+      idIssuedBy: aml.idIssuedBy, idIssueDate: toDate(aml.idIssueDate), idExpiryDate: toDate(aml.idExpiryDate), idExpiryLifetime: aml.idExpiryLifetime,
       weightBaht: parseFloat(form.weightBaht) || 0,
       amount: parseFloat(form.amount) || 0,
       beneficiary: aml.beneficiary,
@@ -168,6 +168,17 @@ export default function BarGoldPage() {
       if (!data?.citizen_id) { notify("ไม่พบข้อมูลบัตร", "error"); return; }
       const [fname, lname = ""] = data.name_th.split(" ");
       setForm(prev => ({ ...prev, idcard: data.citizen_id, firstname: fname, lastname: lname, address: data.address }));
+      // ข้อมูลสำหรับแบบ ปปง. (ตัวอ่านบัตรรุ่นใหม่ส่งมาให้) — บัตรประชาชนไทย จึงตั้งสัญชาติ/ชนิดหลักฐานด้วย
+      const lifetime = data.expire_date === "99999999";
+      setAml(prev => ({
+        ...prev,
+        idType: "citizen",
+        nationality: "ไทย",
+        idIssuedBy: data.issuer || prev.idIssuedBy,
+        idIssueDate: beDateToIso(data.issue_date) || prev.idIssueDate,
+        idExpiryDate: lifetime ? "" : beDateToIso(data.expire_date) || prev.idExpiryDate,
+        idExpiryLifetime: lifetime,
+      }));
     } catch { notify("ดึงข้อมูลบัตรล้มเหลว", "error"); }
   };
 

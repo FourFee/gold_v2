@@ -11,6 +11,10 @@ class IDCardData(BaseModel):
     citizen_id: str
     name_th: str
     address: str
+    # เพิ่มเพื่อแบบ ปปง. — ตัวอ่านบัตรรุ่นเก่าไม่ส่งมาก็ได้
+    issue_date: str = ""   # YYYYMMDD (พ.ศ.)
+    expire_date: str = ""  # YYYYMMDD (พ.ศ.), "99999999" = ตลอดชีพ
+    issuer: str = ""       # หน่วยงานที่ออกบัตร
 
 latest_card_data: IDCardData | None = None
 latest_card_time: datetime | None = None
