@@ -112,7 +112,29 @@ def read_card(conn):
     name_th  = f"{first_name} {last_name}".strip()
     address  = clean(decode_field(addr_raw))
 
-    return {"citizen_id": citizen_id, "name_th": name_th, "address": address}
+    data = {"citizen_id": citizen_id, "name_th": name_th, "address": address}
+    data.update(read_issue_info(conn))
+    return data
+
+
+def read_issue_info(conn) -> dict:
+    """วันออกบัตร/วันหมดอายุ (YYYYMMDD พ.ศ., "99999999" = ตลอดชีพ) + หน่วยงานที่ออกบัตร — ใช้ในแบบ ปปง.
+    อ่านไม่ได้ก็คืนค่าว่าง ไม่ให้กระทบการอ่านบัตรหลัก"""
+    info = {"issue_date": "", "expire_date": "", "issuer": ""}
+    try:
+        dates_raw = read_raw(conn, 0x0167, 0x12)
+        digits = re.sub(r"\D", "", decode_field(dates_raw[:16], "ascii"))
+        if len(digits) == 16:
+            info["issue_date"], info["expire_date"] = digits[:8], digits[8:]
+        else:
+            log.warning(f"วันออก/หมดอายุบัตรอ่านได้ไม่ครบ: {dates_raw.hex()}")
+    except Exception as e:
+        log.warning(f"อ่านวันออก/หมดอายุบัตรไม่ได้: {e}")
+    try:
+        info["issuer"] = clean(decode_field(read_raw(conn, 0x00F6, 0x64)))
+    except Exception as e:
+        log.warning(f"อ่านหน่วยงานที่ออกบัตรไม่ได้: {e}")
+    return info
 
 
 def send_to_api(endpoint: str, data: dict = None):
