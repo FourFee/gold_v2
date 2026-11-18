@@ -22,6 +22,14 @@ import { dateHaystack, buildSearchFilter } from "../utils/listFilter";
 import { BarGoldRecord } from "../types";
 import PeriodNavigator, { Period, isInPeriod } from "../components/PeriodNavigator";
 import { usePrint } from "../components/ReceiptPrint";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import FlagIcon from "@mui/icons-material/Flag";
+import FlagOutlinedIcon from "@mui/icons-material/FlagOutlined";
+import {
+  AML_EXTRA_INITIAL, amlRefText, extraFromAmlSnapshot, fetchAmlMap, fetchStrMap, openAmlRecordPdf,
+  type AmlExtra, type AmlRecord, type AmlTxInfo, type StrRecord,
+} from "../utils/amlFlow";
+import StrReportDialog from "../components/StrReportDialog";
 
 dayjs.extend(utc);
 
@@ -59,6 +67,11 @@ export default function BarGoldList() {
   const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs());
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
+  const [amlMap, setAmlMap]         = useState<Map<number, AmlRecord>>(new Map());
+  const [amlOpening, setAmlOpening] = useState<number | null>(null);
+  const [strMap, setStrMap]         = useState<Map<number, StrRecord[]>>(new Map());
+  const [strTx, setStrTx]           = useState<AmlTxInfo | null>(null);
+  const [strInitial, setStrInitial] = useState<AmlExtra>(AML_EXTRA_INITIAL);
 
   // Pre-fill search จาก ?q= ใน URL (มาจาก GlobalSearch)
   const location = useLocation();
@@ -85,6 +98,41 @@ export default function BarGoldList() {
   }, [API, notify]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // ข้อมูลแบบ ปปง. (เลขลำดับ + ข้อมูลไว้พิมพ์ซ้ำ) — โหลดไม่ได้ก็ยังใช้หน้ารายการได้ปกติ
+  useEffect(() => {
+    fetchAmlMap("bar_gold").then(setAmlMap).catch(() => setAmlMap(new Map()));
+    fetchStrMap("bar_gold").then(setStrMap).catch(() => setStrMap(new Map()));
+  }, [data]);
+
+  // รายงานธุรกรรมที่มีเหตุอันควรสงสัย (ปปง.1-05-10)
+  const openStrDialog = (item: typeof data[number], prefill?: AmlExtra) => {
+    setStrInitial(prefill ?? extraFromAmlSnapshot(amlMap.get(item.id)?.data));
+    setStrTx({
+      entity: "bar_gold", id: item.id, date: item.date, mode: item.mode,
+      firstname: item.firstname || "", lastname: item.lastname || "", idcard: item.idcard || "",
+      address: item.address || "", phone: item.phone || "",
+      weight: Number(item.weightBaht) || 0, amount: Number(item.amount) || 0,
+    });
+  };
+
+  // มาจากหน้าบันทึกที่ติ๊ก "ธุรกรรมน่าสงสัย" → ?str=<id> เปิดหน้าต่างรายงานให้ทันที
+  useEffect(() => {
+    const strId = Number(new URLSearchParams(location.search).get("str"));
+    if (!strId || loading) return;
+    const item = data.find(d => d.id === strId);
+    if (!item) return;
+    const prefill = (location.state as { strPrefill?: AmlExtra } | null)?.strPrefill;
+    openStrDialog(item, prefill);
+    navigate(location.pathname, { replace: true });
+  }, [data, loading, location.search]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const reprintAml = async (rec: AmlRecord) => {
+    setAmlOpening(rec.entity_id);
+    try { await openAmlRecordPdf(rec); }
+    catch (err) { notify(`เปิดแบบ ปปง. ไม่สำเร็จ: ${(err as Error).message}`, "error"); }
+    finally { setAmlOpening(null); }
+  };
 
   // BarGoldList.tsx (บรรทัด 87-97)
   const filteredData = useMemo(() => {
@@ -504,6 +552,34 @@ export default function BarGoldList() {
                         </Tooltip>
                       )}
 
+                      {editIndex === null && amlMap.get(item.id)?.status === "report" && (() => {
+                        const rec = amlMap.get(item.id)!;
+                        return (
+                          <Tooltip title={`พิมพ์แบบ ปปง. เลขที่ ${amlRefText(rec)}`} arrow>
+                            <IconButton size="small" onClick={() => reprintAml(rec)} disabled={amlOpening === item.id}
+                              sx={{ color: G.danger, bgcolor: alpha(G.danger, 0.1), borderRadius: '7px',
+                                '&:hover': { bgcolor: alpha(G.danger, 0.18) } }}>
+                              {amlOpening === item.id
+                                ? <CircularProgress size={14} sx={{ color: G.danger }} />
+                                : <PictureAsPdfIcon sx={{ fontSize: 16 }} />}
+                            </IconButton>
+                          </Tooltip>
+                        );
+                      })()}
+                      {editIndex === null && (() => {
+                        const strs = strMap.get(item.id) ?? [];
+                        return (
+                          <Tooltip arrow title={strs.length
+                            ? `รายงานธุรกรรมน่าสงสัยแล้ว (${strs.map(amlRefText).join(", ")})`
+                            : "รายงานธุรกรรมที่มีเหตุอันควรสงสัย (ปปง.1-05-10)"}>
+                            <IconButton size="small" onClick={() => openStrDialog(item)}
+                              sx={{ color: strs.length ? G.danger : G.textMuted, bgcolor: alpha(strs.length ? G.danger : G.textMuted, 0.08), borderRadius: '7px',
+                                '&:hover': { bgcolor: alpha(G.danger, 0.16), color: G.danger } }}>
+                              {strs.length ? <FlagIcon sx={{ fontSize: 16 }} /> : <FlagOutlinedIcon sx={{ fontSize: 16 }} />}
+                            </IconButton>
+                          </Tooltip>
+                        );
+                      })()}
                       <Tooltip title="ลบ" arrow>
                         <IconButton size="small" onClick={() => handleDelete(item.id)} disabled={deleting === item.id}
                           sx={{ color: G.danger, bgcolor: alpha(G.danger, 0.1), borderRadius: '7px',
@@ -590,7 +666,11 @@ export default function BarGoldList() {
         </Grid>
       </Paper>
 
-      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleClose}
+      <StrReportDialog open={!!strTx} onClose={() => setStrTx(null)} tx={strTx}
+        existing={strTx ? strMap.get(strTx.id) ?? [] : []} initialExtra={strInitial} notify={notify}
+        onCreated={(rec) => setStrMap(m => new Map(m).set(rec.entity_id, [...(m.get(rec.entity_id) ?? []), rec]))} />
+
+      <Snackbar open={snackbar.open} autoHideDuration={snackbar.severity === 'success' ? 3000 : 7000} onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity={snackbar.severity} onClose={handleClose}>{snackbar.message}</Alert>
       </Snackbar>

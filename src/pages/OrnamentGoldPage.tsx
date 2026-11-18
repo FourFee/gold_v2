@@ -13,6 +13,12 @@ import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 import CustomerForm from "../components/CustomerForm";
 import { makeG } from "../utils/dashboardTokens";
+import AmlReportPanel from "../components/AmlReportPanel";
+import { Checkbox, FormControlLabel, Tooltip } from "@mui/material";
+import {
+  AML_EXTRA_INITIAL, amlFromCard, amlPayload, amlRefText, buildAmlInput, isOverAmlThreshold,
+  openAmlRecordPdf, previewAmlPdf, validateAml, type AmlExtra, type AmlRecord,
+} from "../utils/amlFlow";
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
@@ -34,6 +40,15 @@ export default function OrnamentGoldPage() {
   const { print } = usePrint();
   const navigate = useNavigate();
   const [mode, setMode] = useState<"buy" | "sell">("buy");
+  const [saving, setSaving] = useState(false);
+  const [aml, setAml] = useState<AmlExtra>(AML_EXTRA_INITIAL);
+  const [previewing, setPreviewing] = useState(false);
+  // ติ๊กไว้ = หลังบันทึกเปิดหน้าต่างรายงานธุรกรรมน่าสงสัย (ปปง.1-05-10) ในหน้ารายการ
+  const [suspicious, setSuspicious] = useState(false);
+
+  // ธุรกรรมตั้งแต่ 2 ล้านขึ้นไป ต้องเลือกว่าส่ง ปปง. หรือไม่
+  const amountNum = parseFloat(form.amount);
+  const overThreshold = isOverAmlThreshold(amountNum);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [e.target.name]: e.target.value }));
@@ -44,11 +59,29 @@ export default function OrnamentGoldPage() {
     if (!form.firstname) { notify("กรุณากรอกชื่อ", "error"); return null; }
     if (isNaN(w) || w <= 0) { notify("น้ำหนักต้องมากกว่า 0", "error"); return null; }
     if (isNaN(a) || a <= 0) { notify("จำนวนเงินต้องมากกว่า 0", "error"); return null; }
+    if (overThreshold) {
+      const err = validateAml(aml, form.idcard);
+      if (err) { notify(err, "error"); return null; }
+    }
     return { w, a };
   };
 
-  
-  const saveToServer = async (w: number, a: number) => {
+  const makeAmlInput = (date: Date) => buildAmlInput({
+    mode, date, goods: "ทองรูปพรรณ", customer: form,
+    weight: parseFloat(form.weight) || 0, weightUnit: "gram",
+    amount: parseFloat(form.amount) || 0, extra: aml,
+  });
+
+  const handlePreviewAml = async () => {
+    const v = validate(); if (!v) return;
+    setPreviewing(true);
+    try { await previewAmlPdf(makeAmlInput(new Date())); }
+    catch (err) { notify((err as Error).message, "error"); }
+    finally { setPreviewing(false); }
+  };
+
+  const saveToServer = async (w: number, a: number): Promise<{ id: number; aml: AmlRecord | null }> => {
+    const date = new Date();
     const res = await fetch(`${API_BASE}/ornament-gold/create`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -57,6 +90,8 @@ export default function OrnamentGoldPage() {
         mode,
         weight: w,
         amount: a,
+        date: date.toISOString(),
+        aml: overThreshold ? amlPayload(aml, makeAmlInput(date)) : null,
       }),
     });
 
@@ -68,29 +103,35 @@ export default function OrnamentGoldPage() {
           : "บันทึกไม่สำเร็จ"
       );
     }
+    return res.json();
   };
 
-
-  const handleSave = async () => {
+  // บันทึกก่อน (backend ออกเลข ปปง.) แล้วค่อยเปิด PDF — ถ้า PDF ไม่สำเร็จ รายการบันทึกแล้ว พิมพ์ซ้ำได้จากหน้ารายการ
+  const doSave = async (withReceipt: boolean) => {
     const v = validate(); if (!v) return;
+    setSaving(true);
     try {
-      await saveToServer(v.w, v.a);
+      const saved = await saveToServer(v.w, v.a);
+      if (withReceipt) {
+        print({ type: "ornament", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: v.w, amount: v.a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
+      }
+      const strPrefill = aml;
+      clearForm(); setAml(AML_EXTRA_INITIAL); setSuspicious(false);
+      if (saved.aml?.status === "report") {
+        try { await openAmlRecordPdf(saved.aml); }
+        catch (err) {
+          notify(`บันทึกแล้ว (ปปง. เลขที่ ${amlRefText(saved.aml)}) แต่เปิด PDF ไม่สำเร็จ: ${(err as Error).message} — พิมพ์ซ้ำได้ที่หน้ารายการ`, "error");
+          return;
+        }
+      }
       notify("บันทึกเรียบร้อย", "success");
-      clearForm();
-      navigate("/ornament-list");
+      if (suspicious) navigate(`/ornament-list?str=${saved.id}`, { state: { strPrefill } });
+      else navigate("/ornament-list");
     } catch (err) { notify((err as Error).message, "error"); }
+    finally { setSaving(false); }
   };
-
-  const handleSaveAndPrint = async () => {
-    const v = validate(); if (!v) return;
-    try {
-      await saveToServer(v.w, v.a);
-      notify("บันทึกเรียบร้อย", "success");
-      print({ type: "ornament", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: v.w, amount: v.a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
-      clearForm();
-      navigate("/ornament-list");
-    } catch (err) { notify((err as Error).message, "error"); }
-  };
+  const handleSave = () => doSave(false);
+  const handleSaveAndPrint = () => doSave(true);
 
   const handleReadCard = async () => {
     try {
@@ -99,10 +140,11 @@ export default function OrnamentGoldPage() {
       if (!data?.citizen_id) { notify("ไม่พบข้อมูลบัตร", "error"); return; }
       const [fname, lname = ""] = data.name_th.split(" ");
       setForm(prev => ({ ...prev, idcard: data.citizen_id, firstname: fname, lastname: lname, address: data.address }));
+      setAml(prev => amlFromCard(data, prev)); // วันออก/หมดอายุ/ผู้ออกบัตร สำหรับแบบ ปปง.
     } catch { notify("ดึงข้อมูลบัตรล้มเหลว", "error"); }
   };
 
-  const handleClear = () => clearForm();
+  const handleClear = () => { clearForm(); setAml(AML_EXTRA_INITIAL); };
 
   const inputSx = {
     '& .MuiOutlinedInput-root': {
@@ -172,16 +214,27 @@ export default function OrnamentGoldPage() {
             <TextField fullWidth label="จำนวนเงิน (บาท)" name="amount" value={form.amount}
               onChange={handleChange} type="number" inputProps={{ min: 0 }} sx={inputSx} />
           </Grid>
+          {overThreshold && (
+            <Grid item xs={12}>
+              <AmlReportPanel value={aml} onChange={setAml} mode={mode} goods="ทองรูปพรรณ" amount={amountNum}
+                onPreview={handlePreviewAml} previewing={previewing} inputSx={inputSx} />
+            </Grid>
+          )}
           <Grid item xs={12}>
             <TextField fullWidth multiline rows={2} label="หมายเหตุ" name="remark"
               value={form.remark} onChange={handleChange} sx={inputSx} />
           </Grid>
           <Grid item xs={12}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="flex-end">
-              <Button variant="outlined" onClick={handleSave}
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="flex-end" alignItems={{ sm: "center" }}>
+              <Tooltip arrow title="ติ๊กเมื่อสงสัยว่าเป็นธุรกรรมผิดปกติ — หลังบันทึกจะเปิดแบบรายงานธุรกรรมที่มีเหตุอันควรสงสัยให้ (ห้ามบอกลูกค้า)">
+                <FormControlLabel sx={{ mr: 'auto', '& .MuiTypography-root': { fontSize: 12.5, color: G.textMuted } }}
+                  control={<Checkbox size="small" checked={suspicious} onChange={(e) => setSuspicious(e.target.checked)} />}
+                  label="รายงาน 1-05-10 หลังบันทึก" />
+              </Tooltip>
+              <Button variant="outlined" onClick={handleSave} disabled={saving}
                 sx={{ borderRadius: '10px', borderColor: G.accent, color: G.accent, minHeight: 44, fontWeight: 600,
                   '&:hover': { bgcolor: alpha(G.accent, 0.08) } }}>
-                บันทึก
+                {saving ? "กำลังบันทึก..." : "บันทึก"}
               </Button>
               <Button startIcon={<PrintIcon />} variant="outlined"
                 onClick={() => print({ type: "ornament", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weight) || 0, amount: parseFloat(form.amount) || 0, goldType: mode === "buy" ? "ขายออก" : "ซื้อเข้า", remark: form.remark })}
@@ -189,16 +242,16 @@ export default function OrnamentGoldPage() {
                   '&:hover': { borderColor: G.accent, color: G.accent } }}>
                 พิมพ์ใบเสร็จ
               </Button>
-              <Button variant="contained" onClick={handleSaveAndPrint}
+              <Button variant="contained" onClick={handleSaveAndPrint} disabled={saving}
                 sx={{ borderRadius: '10px', bgcolor: G.accent, minHeight: 44, fontWeight: 600,
                   '&:hover': { bgcolor: alpha(G.accent, 0.85) } }}>
-                บันทึก + พิมพ์
+                {saving ? "กำลังบันทึก..." : "บันทึก + พิมพ์"}
               </Button>
             </Stack>
           </Grid>
         </Grid>
       </Paper>
-      <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={handleClose} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
+      <Snackbar open={snackbar.open} autoHideDuration={snackbar.severity === 'error' ? 6000 : 3000} onClose={handleClose} anchorOrigin={{ vertical: "bottom", horizontal: "center" }}>
         <Alert severity={snackbar.severity} onClose={handleClose}>{snackbar.message}</Alert>
       </Snackbar>
     </Box>

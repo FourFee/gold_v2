@@ -17,9 +17,12 @@ import TrendingDownIcon from "@mui/icons-material/TrendingDown";
 
 import CustomerForm from "../components/CustomerForm";
 import { makeG } from "../utils/dashboardTokens";
-import AmlReportPanel, { AML_EXTRA_INITIAL, type AmlExtra } from "../components/AmlReportPanel";
-import { AML_SHOP, AML_THRESHOLD } from "../utils/amlConfig";
-import { amlFileName, beDateToIso, makeAmlReportBlob, openPdfBlob, type AmlReportInput } from "../utils/amlReport";
+import AmlReportPanel from "../components/AmlReportPanel";
+import { Checkbox, FormControlLabel, Tooltip } from "@mui/material";
+import {
+  AML_EXTRA_INITIAL, amlFromCard, amlPayload, amlRefText, buildAmlInput, isOverAmlThreshold,
+  openAmlRecordPdf, previewAmlPdf, validateAml, type AmlExtra, type AmlRecord,
+} from "../utils/amlFlow";
 
 const MONO = '"JetBrains Mono", ui-monospace, monospace';
 
@@ -45,12 +48,13 @@ export default function BarGoldPage() {
   const [saving, setSaving] = useState(false);
   const [dateEdited, setDateEdited] = useState(false);
   const [aml, setAml] = useState<AmlExtra>(AML_EXTRA_INITIAL);
-  const [generatingAml, setGeneratingAml] = useState(false);
+  const [previewing, setPreviewing] = useState(false);
+  // ติ๊กไว้ = หลังบันทึกเปิดหน้าต่างรายงานธุรกรรมน่าสงสัย (ปปง.1-05-10) ในหน้ารายการ
+  const [suspicious, setSuspicious] = useState(false);
 
-  // ธุรกรรมเงินสดตั้งแต่ 2 ล้านขึ้นไป (ทั้งขายออกและซื้อเข้า) ต้องรายงาน ปปง.
+  // ธุรกรรมตั้งแต่ 2 ล้านขึ้นไป (ทั้งขายออกและซื้อเข้า) ต้องเลือกว่าส่ง ปปง. หรือไม่
   const amountNum = parseFloat(form.amount);
-  const overThreshold = !isNaN(amountNum) && amountNum >= AML_THRESHOLD;
-  const amlRequired = overThreshold && aml.cash;
+  const overThreshold = isOverAmlThreshold(amountNum);
 
   useEffect(() => { setForm(prev => ({ ...prev, date: "" })); }, []);
 
@@ -70,56 +74,46 @@ export default function BarGoldPage() {
     if (!form.firstname) { notify("กรุณากรอกชื่อ", "error"); return null; }
     if (isNaN(wb) || wb <= 0) { notify("น้ำหนักต้องมากกว่า 0", "error"); return null; }
     if (isNaN(a)  || a  <= 0) { notify("จำนวนเงินต้องมากกว่า 0", "error"); return null; }
-    if (amlRequired) {
-      if (!form.idcard.trim()) {
-        notify(`เงินสดตั้งแต่ ${AML_THRESHOLD.toLocaleString()} บาท ต้องกรอกเลขบัตรประชาชน/หนังสือเดินทาง`, "error");
-        return null;
-      }
-      if (!aml.nationality.trim()) { notify("กรุณากรอกสัญชาติ (ใช้ในแบบ ปปง.)", "error"); return null; }
-      if (aml.idType === "other" && !aml.idTypeOther.trim()) { notify("กรุณาระบุชนิดหลักฐาน", "error"); return null; }
+    if (overThreshold) {
+      const err = validateAml(aml, form.idcard);
+      if (err) { notify(err, "error"); return null; }
     }
     return { wb, a };
   };
 
-  const buildAmlInput = (): AmlReportInput => {
-    const toDate = (s: string) => (s && dayjs(s).isValid() ? dayjs(s).toDate() : null);
-    return {
-      shop: AML_SHOP,
-      mode,
-      date: dateEdited && form.date && dayjs(form.date).isValid() ? dayjs(form.date).toDate() : new Date(),
-      sequenceNo: aml.sequenceNo,
-      firstname: form.firstname, lastname: form.lastname, nationality: aml.nationality,
-      address: form.address, phone: form.phone, occupation: aml.occupation,
-      idType: aml.idType, idTypeOther: aml.idTypeOther, idNumber: form.idcard,
-      idIssuedBy: aml.idIssuedBy, idIssueDate: toDate(aml.idIssueDate), idExpiryDate: toDate(aml.idExpiryDate), idExpiryLifetime: aml.idExpiryLifetime,
-      weightBaht: parseFloat(form.weightBaht) || 0,
-      amount: parseFloat(form.amount) || 0,
-      beneficiary: aml.beneficiary,
-      purpose: aml.purpose.trim() || (mode === "buy" ? "ซื้อทองคำแท่ง" : "ขายทองคำแท่ง"),
-    };
+  // วันที่ทำรายการ: ถ้าไม่ได้เลือกใช้เวลาปัจจุบัน ถ้าเลือกวันใช้วันนั้น + เวลาปัจจุบัน
+  const txDate = () => {
+    const now = dayjs();
+    if (!dateEdited) return now;
+    const d = dayjs(form.date);
+    return d.isValid() ? d.hour(now.hour()).minute(now.minute()).second(now.second()) : now;
   };
 
-  // สร้าง PDF ก่อนบันทึก: ถ้าสร้างไม่สำเร็จจะหยุดก่อน ไม่เกิดรายการซ้ำเมื่อกดบันทึกใหม่
-  const prepareAml = async () => (amlRequired ? makeAmlReportBlob(buildAmlInput()) : null);
-  const showAml = (blob: Blob | null) => { if (blob) openPdfBlob(blob, amlFileName(buildAmlInput().date)); };
+  const makeAmlInput = (date: Date) => buildAmlInput({
+    mode, date, goods: "ทองคำแท่ง", customer: form,
+    weight: parseFloat(form.weightBaht) || 0, weightUnit: "baht",
+    amount: parseFloat(form.amount) || 0, extra: aml,
+  });
 
-  const handleGenerateAml = async () => {
+  const handlePreviewAml = async () => {
     const v = validate(); if (!v) return;
-    setGeneratingAml(true);
-    try { showAml(await makeAmlReportBlob(buildAmlInput())); }
+    setPreviewing(true);
+    try { await previewAmlPdf(makeAmlInput(txDate().toDate())); }
     catch (err) { notify((err as Error).message, "error"); }
-    finally { setGeneratingAml(false); }
+    finally { setPreviewing(false); }
   };
 
-  const saveToServer = async (wb: number, a: number) => {
+  const saveToServer = async (wb: number, a: number): Promise<{ id: number; aml: AmlRecord | null }> => {
     const wg = parseFloat(form.weightGram);
+    const date = txDate();
     const payload = {
       ...form,
       mode,
       weightBaht: wb,
       weightGram: isNaN(wg) ? wb * 15.244 : wg,
       amount: a,
-      date: (() => { const now = dayjs(); if (!dateEdited) return now.toISOString(); const d = dayjs(form.date); return d.isValid() ? d.hour(now.hour()).minute(now.minute()).second(now.second()).toISOString() : now.toISOString(); })(),
+      date: date.toISOString(),
+      aml: overThreshold ? amlPayload(aml, makeAmlInput(date.toDate())) : null,
     };
     const res = await fetch(`${API_BASE}/bar-gold/create`, {
       method: "POST",
@@ -130,36 +124,35 @@ export default function BarGoldPage() {
       const detail = await res.json().catch(() => ({}));
       throw new Error(detail?.detail ? String(detail.detail) : `บันทึกไม่สำเร็จ (${res.status})`);
     }
+    return res.json();
   };
 
-  const handleSave = async () => {
+  // บันทึกก่อน (backend ออกเลข ปปง.) แล้วค่อยเปิด PDF — ถ้า PDF ไม่สำเร็จ รายการบันทึกแล้ว พิมพ์ซ้ำได้จากหน้ารายการ
+  const doSave = async (withReceipt: boolean) => {
     const v = validate(); if (!v) return;
     setSaving(true);
     try {
-      const amlBlob = await prepareAml();
-      await saveToServer(v.wb, v.a);
-      showAml(amlBlob);
+      const saved = await saveToServer(v.wb, v.a);
+      if (withReceipt) {
+        print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightBaht) || 0, amount: v.a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
+      }
+      const strPrefill = aml;
+      clearForm(); setDateEdited(false); setAml(AML_EXTRA_INITIAL); setSuspicious(false);
+      if (saved.aml?.status === "report") {
+        try { await openAmlRecordPdf(saved.aml); }
+        catch (err) {
+          notify(`บันทึกแล้ว (ปปง. เลขที่ ${amlRefText(saved.aml)}) แต่เปิด PDF ไม่สำเร็จ: ${(err as Error).message} — พิมพ์ซ้ำได้ที่หน้ารายการ`, "error");
+          return;
+        }
+      }
       notify("บันทึกเรียบร้อย", "success");
-      clearForm();
-      navigate("/bar-list");
+      if (suspicious) navigate(`/bar-list?str=${saved.id}`, { state: { strPrefill } });
+      else navigate("/bar-list");
     } catch (err) { notify((err as Error).message, "error"); }
     finally { setSaving(false); }
   };
-
-  const handleSaveAndPrint = async () => {
-    const v = validate(); if (!v) return;
-    setSaving(true);
-    try {
-      const amlBlob = await prepareAml();
-      await saveToServer(v.wb, v.a);
-      showAml(amlBlob);
-      notify("บันทึกเรียบร้อย", "success");
-      print({ type: "bar", firstname: form.firstname, lastname: form.lastname, idcard: form.idcard, phone: form.phone, address: form.address, weight: parseFloat(form.weightBaht) || 0, amount: v.a, goldType: mode === "buy" ? "ขายออก (ร้านขายให้ลูกค้า)" : "ซื้อเข้า (ลูกค้าขายให้ร้าน)", remark: form.remark });
-      clearForm();
-      navigate("/bar-list");
-    } catch (err) { notify((err as Error).message, "error"); }
-    finally { setSaving(false); }
-  };
+  const handleSave = () => doSave(false);
+  const handleSaveAndPrint = () => doSave(true);
 
   const handleReadCard = async () => {
     try {
@@ -168,17 +161,7 @@ export default function BarGoldPage() {
       if (!data?.citizen_id) { notify("ไม่พบข้อมูลบัตร", "error"); return; }
       const [fname, lname = ""] = data.name_th.split(" ");
       setForm(prev => ({ ...prev, idcard: data.citizen_id, firstname: fname, lastname: lname, address: data.address }));
-      // ข้อมูลสำหรับแบบ ปปง. (ตัวอ่านบัตรรุ่นใหม่ส่งมาให้) — บัตรประชาชนไทย จึงตั้งสัญชาติ/ชนิดหลักฐานด้วย
-      const lifetime = data.expire_date === "99999999";
-      setAml(prev => ({
-        ...prev,
-        idType: "citizen",
-        nationality: "ไทย",
-        idIssuedBy: data.issuer || prev.idIssuedBy,
-        idIssueDate: beDateToIso(data.issue_date) || prev.idIssueDate,
-        idExpiryDate: lifetime ? "" : beDateToIso(data.expire_date) || prev.idExpiryDate,
-        idExpiryLifetime: lifetime,
-      }));
+      setAml(prev => amlFromCard(data, prev)); // วันออก/หมดอายุ/ผู้ออกบัตร สำหรับแบบ ปปง.
     } catch { notify("ดึงข้อมูลบัตรล้มเหลว", "error"); }
   };
 
@@ -312,8 +295,8 @@ export default function BarGoldPage() {
           </Grid>
           {overThreshold && (
             <Grid item xs={12}>
-              <AmlReportPanel value={aml} onChange={setAml} mode={mode} amount={amountNum}
-                onGenerate={handleGenerateAml} generating={generatingAml} inputSx={inputSx} />
+              <AmlReportPanel value={aml} onChange={setAml} mode={mode} goods="ทองคำแท่ง" amount={amountNum}
+                onPreview={handlePreviewAml} previewing={previewing} inputSx={inputSx} />
             </Grid>
           )}
           <Grid item xs={12}>
@@ -321,7 +304,12 @@ export default function BarGoldPage() {
               value={form.remark} onChange={handleChange} sx={inputSx} />
           </Grid>
           <Grid item xs={12}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="flex-end">
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5} justifyContent="flex-end" alignItems={{ sm: "center" }}>
+              <Tooltip arrow title="ติ๊กเมื่อสงสัยว่าเป็นธุรกรรมผิดปกติ — หลังบันทึกจะเปิดแบบรายงานธุรกรรมที่มีเหตุอันควรสงสัยให้ (ห้ามบอกลูกค้า)">
+                <FormControlLabel sx={{ mr: 'auto', '& .MuiTypography-root': { fontSize: 12.5, color: G.textMuted } }}
+                  control={<Checkbox size="small" checked={suspicious} onChange={(e) => setSuspicious(e.target.checked)} />}
+                  label="รายงาน 1-05-10 หลังบันทึก" />
+              </Tooltip>
               <Button variant="outlined" onClick={handleSave} disabled={saving}
                 sx={{ borderRadius: '10px', borderColor: G.accent, color: G.accent, minHeight: 44, fontWeight: 600,
                   '&:hover': { bgcolor: alpha(G.accent, 0.08) } }}>

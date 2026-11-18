@@ -119,6 +119,23 @@ class AmlReport(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 
+class AmlStrReport(Base):
+    """แบบรายงาน ปปง.1-05-10 (ธุรกรรมที่มีเหตุอันควรสงสัย) — ไม่จำกัดยอดเงิน
+
+    seq รันใหม่ทุกเดือน (ปี/เดือนของวันที่ทำธุรกรรม ตามเวลาไทย) แยกจากเลขของแบบ 1-05-2
+    """
+    __tablename__ = "aml_str_reports"
+    __table_args__ = (UniqueConstraint("year_be", "month", "seq", name="uq_aml_str_seq"),)
+    id = Column(Integer, primary_key=True, index=True)
+    entity = Column(String, nullable=False, index=True)      # bar_gold / ornament_gold
+    entity_id = Column(Integer, nullable=False, index=True)
+    year_be = Column(Integer, nullable=False)
+    month = Column(Integer, nullable=False)
+    seq = Column(Integer, nullable=False)
+    data = Column(String, default="{}")                      # JSON snapshot ข้อมูลที่ใช้พิมพ์ฟอร์ม
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
 class AuditLog(Base):
     __tablename__ = "audit_log"
     id = Column(Integer, primary_key=True, index=True)

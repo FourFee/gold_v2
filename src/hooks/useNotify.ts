@@ -8,7 +8,7 @@ export function useNotify() {
     severity: "success" | "error" | "warning" | "info";
   }>({ open: false, message: "", severity: "success" });
 
-  const notify = useCallback((message: string, severity: "success" | "error" = "success") => {
+  const notify = useCallback((message: string, severity: "success" | "error" | "warning" | "info" = "success") => {
     setSnackbar({ open: true, message, severity });
   }, []);
 

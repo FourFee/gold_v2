@@ -45,6 +45,12 @@ class AmlIn(BaseModel):
     reason: str = ""
     data: dict = Field(default_factory=dict)
 
+class AmlStrIn(BaseModel):
+    """แบบ ปปง.1-05-10 ธุรกรรมที่มีเหตุอันควรสงสัย"""
+    entity: Literal["bar_gold", "ornament_gold"]
+    entity_id: int
+    data: dict = Field(default_factory=dict)
+
 class BarGoldCreateWithAml(BarGoldCreate):
     aml: Optional[AmlIn] = None
 

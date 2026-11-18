@@ -6,6 +6,8 @@ import {
   beginText, endText, setFontAndSize, setTextMatrix, showText,
 } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
+import { openPdfBlob } from "./amlShared";
+export { beDateToIso, openPdfBlob } from "./amlShared";
 
 /* ───────────── ชนิดข้อมูล ───────────── */
 
@@ -42,7 +44,8 @@ export interface AmlReportInput {
   idExpiryDate?: Date | null;
   idExpiryLifetime?: boolean; // บัตรตลอดชีพ → เขียน "ตลอดชีพ" แทนวันหมดอายุ
 
-  weightBaht: number;         // น้ำหนักทอง (บาทน้ำหนัก)
+  weightBaht: number;         // น้ำหนักทอง (หน่วยตาม weightUnit — ค่าเริ่มต้นบาทน้ำหนัก)
+  weightUnit?: "baht" | "gram";
   amount: number;             // จำนวนเงินสด (บาท)
   beneficiary?: string;       // ผู้รับประโยชน์ (ถ้ามี)
   purpose: string;            // วัตถุประสงค์
@@ -56,7 +59,7 @@ const TEXT_COLOR = rgb(0.05, 0.1, 0.45); // น้ำเงินเข้ม �
 // เลื่อนเส้นฐานของตัวอักษรให้อยู่เหนือเส้นประ (bottom = ขอบล่างของบรรทัดในฟอร์ม)
 const baseline = (bottom: number) => bottom - 3.2;
 
-const THAI_MONTHS = [
+export const THAI_MONTHS = [
   "มกราคม", "กุมภาพันธ์", "มีนาคม", "เมษายน", "พฤษภาคม", "มิถุนายน",
   "กรกฎาคม", "สิงหาคม", "กันยายน", "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
 ];
@@ -90,16 +93,8 @@ export function toBuddhistYear(d: Date) {
   return d.getFullYear() + 543;
 }
 
-const pad2 = (n: number) => String(n).padStart(2, "0");
+export const pad2 = (n: number) => String(n).padStart(2, "0");
 
-/** วันที่จากชิปบัตรประชาชน "YYYYMMDD" (พ.ศ.) → "YYYY-MM-DD" (ค.ศ.) ถ้าไม่ถูกต้องคืน "" */
-export function beDateToIso(s: string | undefined | null): string {
-  const m = /^(\d{4})(\d{2})(\d{2})$/.exec((s ?? "").trim());
-  if (!m) return "";
-  const y = Number(m[1]) - 543, mo = Number(m[2]), d = Number(m[3]);
-  if (mo < 1 || mo > 12 || d < 1 || d > 31 || y < 1900) return "";
-  return `${y}-${m[2]}-${m[3]}`;
-}
 
 /** แปลงตัวเลขเป็นคำอ่านไทย เช่น 2500000 → สองล้านห้าแสนบาทถ้วน */
 export function bahtText(value: number): string {
@@ -152,10 +147,11 @@ export function bahtText(value: number): string {
   return (neg ? "ลบ" : "") + text;
 }
 
-const fmtMoney = (n: number) =>
+export const fmtMoney = (n: number) =>
   n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-const fmtWeight = (n: number) => `${Number(n.toFixed(4))} บาท`;
+const fmtWeight = (n: number, unit: "baht" | "gram" = "baht") =>
+  `${Number(n.toFixed(4))} ${unit === "gram" ? "กรัม" : "บาท"}`;
 
 /** แยกที่อยู่ไทยแบบบัตรประชาชนเป็นส่วน ๆ ถ้าแยกไม่ได้จะคืน null */
 export function parseThaiAddress(addr: string) {
@@ -176,6 +172,24 @@ export function parseThaiAddress(addr: string) {
 }
 
 /* ───────────── ตัวเติมข้อมูล ───────────── */
+
+// สระบน/ล่างและวรรณยุกต์ต้องอยู่ติดกับพยัญชนะตัวหน้าเสมอ
+const THAI_COMBINING = /[\u0E31\u0E34-\u0E3A\u0E47-\u0E4E]/;
+
+/** แบ่งข้อความเป็นชิ้นที่ตัดบรรทัดได้ */
+function segmentThai(text: string): string[] {
+  const Seg = (Intl as any).Segmenter;
+  if (Seg) {
+    const seg = new Seg("th", { granularity: "word" });
+    return Array.from(seg.segment(text), (x: any) => x.segment as string);
+  }
+  const out: string[] = [];
+  for (const ch of Array.from(text)) {
+    if (out.length && THAI_COMBINING.test(ch)) out[out.length - 1] += ch;
+    else out.push(ch);
+  }
+  return out;
+}
 
 /**
  * วาดข้อความไทยทีละ glyph พร้อมตำแหน่งจาก GPOS ของฟอนต์
@@ -224,7 +238,7 @@ class ThaiText {
   }
 }
 
-class Filler {
+export class Filler {
   private t: ThaiText;
   constructor(private page: PDFPage, font: PDFFont, fk: any) {
     this.t = new ThaiText(page, font, fk);
@@ -260,6 +274,49 @@ class Filler {
   /** ช่องติ๊กแบบตัวอักษร ☐ ในฟอร์ม (x0, top = มุมกรอบตัวอักษร): กรอบที่เห็นจริงขยับเข้ามา 0.8 / 0.7 */
   checkGlyph(x0: number, top: number) {
     this.check(x0 + 0.8, top + 0.7, 7.2, 7.2);
+  }
+
+  /** ช่องติ๊กแบบตัวอักษร ☐ ขนาด 9pt (เล็กกว่า checkGlyph) */
+  checkGlyph9(x0: number, top: number) {
+    this.check(x0 + 0.9, top + 1.1, 6.4, 6.4);
+  }
+
+  /** ตัดข้อความเป็นบรรทัดตามความกว้าง — ภาษาไทยไม่มีเว้นวรรคจึงตัดตามคำ (Intl.Segmenter) หรือทีละพยางค์ */
+  wrap(text: string, maxW: number, size: number): string[] {
+    const lines: string[] = [];
+    for (const para of text.replace(/\r/g, "").split("\n")) {
+      const tokens = segmentThai(para);
+      let cur = "";
+      for (const tok of tokens) {
+        const next = cur + tok;
+        if (cur && this.t.width(next.trimEnd(), size) > maxW) {
+          lines.push(cur.trimEnd());
+          cur = tok.trimStart();
+        } else {
+          cur = next;
+        }
+      }
+      lines.push(cur.trimEnd());
+    }
+    return lines;
+  }
+
+  /** เขียนย่อหน้าลงบนบรรทัดประหลายบรรทัด — ย่อตัวอักษรถ้ายาวเกิน, ถ้ายังไม่พอตัดท้ายแล้วคืน false */
+  paragraph(text: string, x0: number, x1: number, bottoms: number[], size = 9.5, minSize = 7.5): boolean {
+    const maxW = x1 - x0 - 2;
+    let fs = size;
+    let lines = this.wrap(text, maxW, fs);
+    while (lines.length > bottoms.length && fs > minSize) {
+      fs -= 0.5;
+      lines = this.wrap(text, maxW, fs);
+    }
+    const fits = lines.length <= bottoms.length;
+    if (!fits) {
+      lines = lines.slice(0, bottoms.length);
+      lines[lines.length - 1] = lines[lines.length - 1] + " …(มีต่อในเอกสารแนบ)";
+    }
+    lines.forEach((ln, i) => this.text(ln, x0, x1 + 1, bottoms[i], fs, fs));
+    return fits;
   }
 
   /** ใส่ตัวอักษรทีละตัวกลางช่อง */
@@ -364,12 +421,12 @@ export async function buildAmlReportPdf(input: AmlReportInput, opts: BuildOption
   if (input.mode === "sell") {
     // ซื้อเข้า
     f.check(42.5, 608.0);
-    f.text(fmtWeight(input.weightBaht), 192, 251, ROW_BOTTOM, 9, 6);
+    f.text(fmtWeight(input.weightBaht, input.weightUnit), 192, 251, ROW_BOTTOM, 9, 6);
     f.text(fmtMoney(input.amount), 251, 315, ROW_BOTTOM, 9, 6);
   } else {
     // ขายออก
     f.check(314.9, 608.0);
-    f.text(fmtWeight(input.weightBaht), 458, 525, ROW_BOTTOM, 9, 6);
+    f.text(fmtWeight(input.weightBaht, input.weightUnit), 458, 525, ROW_BOTTOM, 9, 6);
     f.text(fmtMoney(input.amount), 525, 580, ROW_BOTTOM, 9, 6);
   }
 
@@ -389,24 +446,28 @@ export async function buildAmlReportPdf(input: AmlReportInput, opts: BuildOption
 
 const ASSET_BASE = process.env.PUBLIC_URL || "";
 const TEMPLATE_URL = `${ASSET_BASE}/forms/amlo-1-05-2.pdf`;
-const FONT_URL = `${ASSET_BASE}/fonts/Sarabun-Regular.ttf`;
+export const FONT_URL = `${ASSET_BASE}/fonts/Sarabun-Regular.ttf`;
+export const STR_TEMPLATE_URL = `${ASSET_BASE}/forms/amlo-1-05-10.pdf`;
 
-const cache: { template?: ArrayBuffer; font?: ArrayBuffer } = {};
+const assetCache = new Map<string, ArrayBuffer>();
 
-async function loadAsset(url: string): Promise<ArrayBuffer> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`โหลดไฟล์ ${url} ไม่สำเร็จ (${res.status})`);
-  return res.arrayBuffer();
+/** โหลดไฟล์ (เก็บแคช) แล้วคืนสำเนาใหม่ทุกครั้ง เพราะ pdf-lib อาจใช้ buffer เดิมต่อ */
+export async function loadAsset(url: string): Promise<ArrayBuffer> {
+  let buf = assetCache.get(url);
+  if (!buf) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`โหลดไฟล์ ${url} ไม่สำเร็จ (${res.status})`);
+    buf = await res.arrayBuffer();
+    assetCache.set(url, buf);
+  }
+  return buf.slice(0);
 }
 
-/** สร้างไฟล์ PDF (ยังไม่เปิด) — ใช้สร้างก่อนบันทึก เพื่อให้ถ้าสร้างไม่สำเร็จจะได้หยุดก่อนบันทึกซ้ำ */
+/** สร้างไฟล์ PDF แบบ ปปง.1-05-2 (ยังไม่เปิด) */
 export async function makeAmlReportBlob(input: AmlReportInput): Promise<Blob> {
-  cache.template ??= await loadAsset(TEMPLATE_URL);
-  cache.font ??= await loadAsset(FONT_URL);
   const bytes = await buildAmlReportPdf(input, {
-    // สำเนาใหม่ทุกครั้ง เพราะ pdf-lib อาจใช้ buffer เดิมต่อ
-    templateBytes: cache.template.slice(0),
-    fontBytes: cache.font.slice(0),
+    templateBytes: await loadAsset(TEMPLATE_URL),
+    fontBytes: await loadAsset(FONT_URL),
   });
   return new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
 }
@@ -415,20 +476,6 @@ export function amlFileName(d: Date) {
   return `ปปง-1-05-2_${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}.pdf`;
 }
 
-/** เปิด PDF ในแท็บใหม่ ถ้าป๊อปอัปถูกบล็อกจะดาวน์โหลดแทน */
-export function openPdfBlob(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const win = window.open(url, "_blank");
-  if (!win) {
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-  }
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-}
 
 export async function generateAmlReport(input: AmlReportInput): Promise<void> {
   openPdfBlob(await makeAmlReportBlob(input), amlFileName(input.date));
