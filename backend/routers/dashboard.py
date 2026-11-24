@@ -259,6 +259,7 @@ def get_all_transactions_graph_data(
         agg = defaultdict(lambda: {"redeem":0.0,"interest":0.0,"pawn":0.0,"buyIn":0.0,
             "exchange":0.0,"sellOut":0.0,"expenses":0.0,"diamondBuyIn":0.0,
             "diamondSellOut":0.0,"platedGold":0.0,"bar_buy":0.0,"bar_sell":0.0,
+            "bar_buy_amount":0.0,"bar_sell_amount":0.0,
             "gold_out":0.0,"total_gold_flow":0.0,"total_pawn_flow":0.0})
         for t in transactions:
             k = t.date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -275,8 +276,12 @@ def get_all_transactions_graph_data(
             agg[k]["gold_out"]     += (t.sellOut or 0.0) + (t.exchange or 0.0)
         for b in bar_transactions:
             k = b.date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-            if b.mode == "sell": agg[k]["bar_buy"]  += (b.weightBaht or 0.0) * 15.244
-            elif b.mode == "buy": agg[k]["bar_sell"] += (b.weightBaht or 0.0) * 15.244
+            if b.mode == "sell":
+                agg[k]["bar_buy"]        += (b.weightBaht or 0.0) * 15.244
+                agg[k]["bar_buy_amount"] += b.amount or 0.0
+            elif b.mode == "buy":
+                agg[k]["bar_sell"]        += (b.weightBaht or 0.0) * 15.244
+                agg[k]["bar_sell_amount"] += b.amount or 0.0
         for k in agg:
             agg[k]["total_pawn_flow"] = agg[k]["redeem"] - agg[k]["pawn"]
             agg[k]["total_gold_flow"] = (agg[k]["buyIn"] + agg[k]["bar_buy"]) - (agg[k]["sellOut"] + agg[k]["bar_sell"])
@@ -350,6 +355,8 @@ def get_all_transactions_graph_data(
         "platedGold": 0.0,
         "bar_buy": 0.0,
         "bar_sell": 0.0,
+        "bar_buy_amount": 0.0,
+        "bar_sell_amount": 0.0,
         "total_gold_flow": 0.0,
         "total_pawn_flow": 0.0,
     })
@@ -375,8 +382,10 @@ def get_all_transactions_graph_data(
         key = get_sortable_period_key(b.date, period)
         if b.mode == "sell":  # ซื้อเข้า (ลูกค้าขายให้ร้าน)
             raw_aggregated_data[key]["bar_buy"] += (b.weightBaht or 0.0) * 15.244
+            raw_aggregated_data[key]["bar_buy_amount"] += (b.amount or 0.0)
         elif b.mode == "buy":  # ขายออก (ร้านขายให้ลูกค้า)
             raw_aggregated_data[key]["bar_sell"] += (b.weightBaht or 0.0) * 15.244
+            raw_aggregated_data[key]["bar_sell_amount"] += (b.amount or 0.0)
 
     # คำนวณ total_pawn_flow และ total_gold_flow
     for key in raw_aggregated_data:
@@ -449,6 +458,8 @@ def get_all_transactions_graph_data(
             "total_gold_flow": 0.0,
             "bar_buy": 0.0,
             "bar_sell": 0.0,
+            "bar_buy_amount": 0.0,
+            "bar_sell_amount": 0.0,
             "total_pawn_flow": 0.0,
         })
         final_all_transactions_graph_data.append({

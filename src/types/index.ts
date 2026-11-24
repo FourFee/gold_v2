@@ -68,6 +68,7 @@ export interface ChartEntry {
   bar_buy: number; bar_sell: number; total_pawn_flow: number;
   total_revenue: number; total_cost: number; net_profit: number;
   bar_buy_baht: number; bar_sell_baht: number;
+  bar_buy_amount: number; bar_sell_amount: number;
 }
 
 export interface Wholesaler {

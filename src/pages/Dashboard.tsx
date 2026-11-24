@@ -46,6 +46,7 @@ interface GraphData {
   expenses: number; diamondBuyIn: number; diamondSellOut: number;
   platedGold: number; total_gold_flow: number;
   bar_buy: number; bar_sell: number; total_pawn_flow: number;
+  bar_buy_amount: number; bar_sell_amount: number;
 }
 
 const API = `${API_BASE}/dashboard`;
@@ -150,8 +151,8 @@ export default function Dashboard() {
 
   const calc = useMemo<CalcResult | null>(() => {
     if (!summary) return null;
-    const rev    = (summary.redeem||0)+(summary.interest||0)+(summary.sellOut||0)+(summary.bar_sell||0)+(summary.diamondSellOut||0);
-    const cost   = (summary.pawn||0)+(summary.buyIn||0)+(summary.bar_buy||0)+(summary.expenses||0)+(summary.diamondBuyIn||0);
+    const rev    = (summary.redeem||0)+(summary.interest||0)+(summary.sellOut||0)+(summary.bar_sell_amount||0)+(summary.diamondSellOut||0);
+    const cost   = (summary.pawn||0)+(summary.buyIn||0)+(summary.bar_buy_amount||0)+(summary.expenses||0)+(summary.diamondBuyIn||0);
     const profit = rev - cost;
     const margin = rev > 0 ? (profit / rev) * 100 : 0;
     const pawnProfit = (summary.redeem||0)-(summary.pawn||0)+(summary.interest||0);
@@ -160,10 +161,10 @@ export default function Dashboard() {
 
   const chartData = useMemo<ChartEntry[]>(() => graphData.map(d => ({
     ...d,
-    total_revenue: (d.redeem||0)+(d.interest||0)+(d.sellOut||0)+(d.bar_sell||0)+(d.diamondSellOut||0),
-    total_cost:    (d.pawn||0)+(d.buyIn||0)+(d.bar_buy||0)+(d.expenses||0)+(d.diamondBuyIn||0),
-    net_profit:    ((d.redeem||0)+(d.interest||0)+(d.sellOut||0)+(d.bar_sell||0)+(d.diamondSellOut||0))
-                 - ((d.pawn||0)+(d.buyIn||0)+(d.bar_buy||0)+(d.expenses||0)+(d.diamondBuyIn||0)),
+    total_revenue: (d.redeem||0)+(d.interest||0)+(d.sellOut||0)+(d.bar_sell_amount||0)+(d.diamondSellOut||0),
+    total_cost:    (d.pawn||0)+(d.buyIn||0)+(d.bar_buy_amount||0)+(d.expenses||0)+(d.diamondBuyIn||0),
+    net_profit:    ((d.redeem||0)+(d.interest||0)+(d.sellOut||0)+(d.bar_sell_amount||0)+(d.diamondSellOut||0))
+                 - ((d.pawn||0)+(d.buyIn||0)+(d.bar_buy_amount||0)+(d.expenses||0)+(d.diamondBuyIn||0)),
     bar_buy_baht:  (d.bar_buy||0) / GOLD_BAHT_TO_GRAM_BAR,
     bar_sell_baht: (d.bar_sell||0) / GOLD_BAHT_TO_GRAM_BAR,
   })), [graphData]);
