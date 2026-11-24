@@ -78,7 +78,6 @@ def get_summary(
             "sellOut": sell_out_total, "exchange": exchange_total, "buyIn": buy_in_total,
             "bar_buy": bar_buy_total_weight, "bar_sell": bar_sell_total_weight,
             "plated_gold": plated_gold_total,
-            "total_gold_flow": (buy_in_total + bar_buy_total_weight) - (sell_out_total + bar_sell_total_weight),
             "redeem": redeem_total, "interest": interest_total, "pawn": pawn_total,
             "total_pawn_flow": redeem_total - pawn_total, "expenses": expenses_total,
             "gold_out": exchange_total + sell_out_total,
@@ -206,7 +205,6 @@ def get_summary(
 
     plated_gold_total = sum(t.platedGold or 0.0 for t in all_transactions_period)
 
-    total_gold_flow = (buy_in_total + bar_buy_total_weight) - (sell_out_total + bar_sell_total_weight)
     gold_out = exchange_total + sell_out_total 
 
     redeem_total = sum(t.redeem or 0.0 for t in all_transactions_period)
@@ -221,7 +219,6 @@ def get_summary(
         "bar_buy": bar_buy_total_weight,
         "bar_sell": bar_sell_total_weight,
         "plated_gold": plated_gold_total,
-        "total_gold_flow": total_gold_flow,
         "redeem": redeem_total,
         "interest": interest_total,
         "pawn": pawn_total,
@@ -260,7 +257,7 @@ def get_all_transactions_graph_data(
             "exchange":0.0,"sellOut":0.0,"expenses":0.0,"diamondBuyIn":0.0,
             "diamondSellOut":0.0,"platedGold":0.0,"bar_buy":0.0,"bar_sell":0.0,
             "bar_buy_amount":0.0,"bar_sell_amount":0.0,
-            "gold_out":0.0,"total_gold_flow":0.0,"total_pawn_flow":0.0})
+            "gold_out":0.0,"total_pawn_flow":0.0})
         for t in transactions:
             k = t.date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
             agg[k]["redeem"]       += t.redeem or 0.0
@@ -284,7 +281,6 @@ def get_all_transactions_graph_data(
                 agg[k]["bar_sell_amount"] += b.amount or 0.0
         for k in agg:
             agg[k]["total_pawn_flow"] = agg[k]["redeem"] - agg[k]["pawn"]
-            agg[k]["total_gold_flow"] = (agg[k]["buyIn"] + agg[k]["bar_buy"]) - (agg[k]["sellOut"] + agg[k]["bar_sell"])
         result = []
         for k in sorted(agg.keys()):
             result.append({"label": k.strftime("%b %Y"), "date": k.isoformat(), **agg[k]})
@@ -357,7 +353,6 @@ def get_all_transactions_graph_data(
         "bar_sell": 0.0,
         "bar_buy_amount": 0.0,
         "bar_sell_amount": 0.0,
-        "total_gold_flow": 0.0,
         "total_pawn_flow": 0.0,
     })
 
@@ -387,17 +382,10 @@ def get_all_transactions_graph_data(
             raw_aggregated_data[key]["bar_sell"] += (b.weightBaht or 0.0) * 15.244
             raw_aggregated_data[key]["bar_sell_amount"] += (b.amount or 0.0)
 
-    # คำนวณ total_pawn_flow และ total_gold_flow
+    # คำนวณ total_pawn_flow
     for key in raw_aggregated_data:
         data = raw_aggregated_data[key]
         data["total_pawn_flow"] = (data["redeem"] or 0.0) - (data["pawn"] or 0.0)
-        data["total_gold_flow"] = (
-            (data["buyIn"] or 0.0) +
-            (data["bar_buy"] or 0.0)
-        ) - (
-            (data["sellOut"] or 0.0) +
-            (data["bar_sell"] or 0.0)
-        )
 
     # ถ้าไม่ได้ระบุ start_date และ end_date ให้สร้าง expected_period_keys ตาม num_periods
     if not (start_date and end_date):
@@ -455,7 +443,6 @@ def get_all_transactions_graph_data(
             "diamondBuyIn": 0.0,
             "diamondSellOut": 0.0,
             "platedGold": 0.0,
-            "total_gold_flow": 0.0,
             "bar_buy": 0.0,
             "bar_sell": 0.0,
             "bar_buy_amount": 0.0,

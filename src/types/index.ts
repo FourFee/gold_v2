@@ -44,7 +44,7 @@ export interface OrnamentGoldRecord {
 export interface SummaryData {
   sellOut: number; exchange: number; buyIn: number;
   bar_buy: number; bar_sell: number; plated_gold: number;
-  total_gold_flow: number; redeem: number; interest: number;
+  redeem: number; interest: number;
   pawn: number; total_pawn_flow: number; expenses: number;
   gold_out: number; diamondBuyIn: number; diamondSellOut: number;
   bar_buy_amount: number; bar_sell_amount: number;
@@ -64,7 +64,7 @@ export interface ChartEntry {
   redeem: number; interest: number; pawn: number;
   buyIn: number; exchange: number; sellOut: number;
   expenses: number; diamondBuyIn: number; diamondSellOut: number;
-  platedGold: number; total_gold_flow: number;
+  platedGold: number;
   bar_buy: number; bar_sell: number; total_pawn_flow: number;
   total_revenue: number; total_cost: number; net_profit: number;
   bar_buy_baht: number; bar_sell_baht: number;

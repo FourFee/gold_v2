@@ -44,7 +44,7 @@ interface GraphData {
   redeem: number; interest: number; pawn: number;
   buyIn: number; exchange: number; sellOut: number;
   expenses: number; diamondBuyIn: number; diamondSellOut: number;
-  platedGold: number; total_gold_flow: number;
+  platedGold: number;
   bar_buy: number; bar_sell: number; total_pawn_flow: number;
   bar_buy_amount: number; bar_sell_amount: number;
 }
